@@ -17,6 +17,7 @@ import { MediaPanels } from "./MediaPanels.js";
 import { buildBrowseTree, type ExperimentSelection } from "./browseTree.js";
 import { SelectionMenu } from "./SelectionMenu.js";
 import { useExperimentColumns } from './useExperimentColumns.js';
+import { TopBar } from './TopBar.js';
 type Pair = ExperimentSelection;
 function RecordCell({ record, onOpen, generation, textDisplay }: {
     record?: SampleView;
@@ -156,7 +157,7 @@ export function App() {
         setReloading(false);
     } };
     return <div className={`app-shell${sidebarCollapsed ? " sidebar-is-collapsed" : ""}`} style={{ "--sidebar-width": sidebarCollapsed ? "44px" : `${sidebarWidth}px` } as React.CSSProperties}>
-    <header className="topbar"><h1><a href={`${window.location.pathname}${serializeViewState(homeView)}`} onClick={goHome} title="Back to home">DiVE</a></h1></header>
+    <TopBar mode="explorer" homeHref={`${window.location.pathname}${serializeViewState(homeView)}`} onHome={goHome}/>
     <aside id="explorer-sidebar" className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`} aria-label="Explorer navigation">
       <div className="sidebar-header"><button type="button" className="sidebar-toggle icon-button" onClick={() => { setSidebarCollapsed(!sidebarCollapsed); setPickerOpen(false); }} aria-label={sidebarCollapsed ? "Show navigation" : "Hide navigation"} title={sidebarCollapsed ? "Show navigation" : "Hide navigation"} aria-expanded={!sidebarCollapsed} aria-controls="sidebar-controls">{sidebarCollapsed ? <ChevronRight size={20} aria-hidden="true"/> : <ChevronLeft size={20} aria-hidden="true"/>}</button></div>
       <div id="sidebar-controls" className="sidebar-body" hidden={sidebarCollapsed}>{!sidebarCollapsed ? <>
@@ -177,7 +178,7 @@ export function App() {
         setSidebarWidth((width) => Math.min(480, Math.max(240, width + (event.key === "ArrowLeft" ? -16 : 16))));
     } }}/></nav> : null}
     <main className="main-content">{view.notice ? <div className="notice" role="status">{view.notice}</div> : null}{catalogError ? <div className="error-banner" role="alert"><strong>Catalog unavailable</strong><span>{catalogError}</span><button onClick={() => void loadCatalog()}>Retry</button></div> : null}
-      {!dataset ? <div className="dataset-landing"><div className="landing-heading"><h2>DiVE</h2><p>Select a dataset to explore its tasks, experiments, and review examples.</p></div><div className="dataset-search"><input aria-label="Search datasets" type="search" value={datasetSearch} onChange={(event) => setDatasetSearch(event.target.value)} placeholder="Search by name"/></div><div className="results-summary">{visibleDatasets.length} datasets</div><div className="dataset-grid">{visibleDatasets.map((item) => <button className="dataset-card" key={item.id} onClick={() => updateView({ ...view, datasetId: item.id, columns: [], active: undefined })}><strong>{item.title}</strong></button>)}</div>{catalog && !visibleDatasets.length ? <div className="empty-state">No published datasets match this search.</div> : null}</div> : <>
+      {!dataset ? <div className="dataset-landing"><div className="landing-heading"><h2>COViS</h2><p>Select a dataset to explore its tasks, experiments, and review examples.</p></div><div className="dataset-search"><input aria-label="Search datasets" type="search" value={datasetSearch} onChange={(event) => setDatasetSearch(event.target.value)} placeholder="Search by name"/></div><div className="results-summary">{visibleDatasets.length} datasets</div><div className="dataset-grid">{visibleDatasets.map((item) => <button className="dataset-card" key={item.id} onClick={() => updateView({ ...view, datasetId: item.id, columns: [], active: undefined })}><strong>{item.title}</strong></button>)}</div>{catalog && !visibleDatasets.length ? <div className="empty-state">No published datasets match this search.</div> : null}</div> : <>
         <TaskBrowser key={`${dataset.id}:${view.mode}`} items={browseItems} onSelect={addPair}/>
         {!view.columns.length ? <div className="empty-state"><h2>Build a comparison</h2><p>Choose a task, dataset and experiment, or add a column with +.</p></div> : <><div className="results-summary comparison-summary"><span aria-live="polite">{ordered.length} comparison rows · page {page} of {pageCount}</span>
           <div className="comparison-actions" role="group" aria-label="实验与文本操作">

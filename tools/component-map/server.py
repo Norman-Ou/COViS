@@ -19,7 +19,7 @@ def annotate(html, upstream):
     """Use the upstream HTML's current asset URLs instead of storing build hashes."""
     toolbar = (ROOT / "toolbar.html").read_text().replace("__UPSTREAM__", escape(upstream, quote=True))
     html = html.replace('lang="en"', 'lang="zh-CN"')
-    html = html.replace("<title>DiVE</title>", "<title>DiVE · Dev 组件标注</title>")
+    html = html.replace("<title>COViS</title>", "<title>COViS · Dev 组件标注</title>")
     html = html.replace(
         "</head>",
         '<link rel="stylesheet" href="/annotations.css">\n'

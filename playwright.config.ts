@@ -14,7 +14,8 @@ export default defineConfig({
     trace: "retain-on-failure"
   },
   webServer: {
-    command: `T2I_DATA_ROOT=fixtures/datasets PORT=${port} pnpm start`,
+    // Scoring writes labels, so the server uses a fresh scratch copy of the fixture set.
+    command: `rm -rf .cache/scoring-e2e && mkdir -p .cache && cp -R fixtures/scoring .cache/scoring-e2e && T2I_DATA_ROOT=fixtures/datasets T2I_SCORING_ROOT=.cache/scoring-e2e PORT=${port} pnpm start`,
     port,
     reuseExistingServer: false,
     timeout: 30_000

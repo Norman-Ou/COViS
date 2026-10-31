@@ -22,7 +22,7 @@ async function navigate(page: Page, url: string, reload = false) {
             return document.readyState === 'complete'
                 && performance.timeOrigin !== previousDocument
                 && current.href === target
-                && Boolean(document.querySelector('.app-shell'));
+                && Boolean(document.querySelector('.app-shell, .scoring-shell'));
         }, { target: expected.href, previousDocument }).catch(() => false);
         if (!loaded) throw error;
 

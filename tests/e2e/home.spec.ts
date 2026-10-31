@@ -22,12 +22,12 @@ test('dataset search matches name fragments and restores the full list when clea
     await expect(page.locator('.task-gallery')).toBeVisible();
 });
 
-test('DiVE returns home, clears pending sample searches and preserves browser back navigation', async ({ page }) => {
+test('COViS returns home, clears pending sample searches and preserves browser back navigation', async ({ page }) => {
     await page.goto('/?dataset=sft-e6.0-r30&cols=refseg:sior-t:baseline:a&q=airplane-3');
     await expect(page.locator('.column-header')).toHaveCount(1);
     await expect(page.getByText('1 comparison rows · page 1 of 1')).toBeVisible();
     await page.getByLabel('Search examples').fill('pending search');
-    const home = page.getByRole('link', { name: 'DiVE', exact: true });
+    const home = page.getByRole('link', { name: 'COViS', exact: true });
     await expect(home).toHaveAttribute('href', '/');
     await home.focus();
     await home.press('Enter');

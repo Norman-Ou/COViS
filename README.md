@@ -1,6 +1,8 @@
-# DiVE · T2I Explorer
+# COViS
 
-本地实验对比浏览器。数据按 collection → task → dataset → exp 组织，每个实验独立保存完整样本和图片资源。支持 Task / Exp 两种浏览顺序，同一任务、数据来源的实验按稳定 `sample_id` 对齐；不同来源按各组排序后的行序比较。
+COViS 包含两个模式，由左上角 `COViS` 标志右侧的导航切换：**T2I-Explorer**（本地实验对比浏览器，地址和 URL 状态不变，见下文）和 **Scoring**（`/scoring`，预测与 GT 的盲评打分，见[Scoring 模式](#scoring-模式)）。
+
+T2I Explorer 是本地实验对比浏览器。数据按 collection → task → dataset → exp 组织，每个实验独立保存完整样本和图片资源。支持 Task / Exp 两种浏览顺序，同一任务、数据来源的实验按稳定 `sample_id` 对齐；不同来源按各组排序后的行序比较。
 
 需要 Node.js 24.21.0、pnpm 12.4.2。
 
@@ -16,7 +18,7 @@ pnpm start
 
 | 版本 | 启动 skill | 默认地址 |
 | --- | --- | --- |
-| Prob 正式版 | [start-t2i-explorer-prob](.agents/skills/start-t2i-explorer-prob/SKILL.md) | http://localhost:4173/ · https://dive.ouruizhe.top |
+| Prob 正式版 | [start-t2i-explorer-prob](.agents/skills/start-t2i-explorer-prob/SKILL.md) | http://localhost:4173/ · https://covis.ouruizhe.top（旧域名 dive.ouruizhe.top 可配置为 302 跳转） |
 | Dev 组件标注版 | [start-t2i-explorer-dev](.agents/skills/start-t2i-explorer-dev/SKILL.md) | http://localhost:4180/?dataset=sft-e6.0-r30 |
 
 使用 `$start-t2i-explorer-prob` 构建、启动正式版并检查已有 Cloudflare Tunnel；域名访问需要本机已有命名 tunnel 及凭据。使用 `$start-t2i-explorer-dev` 启动组件标注版，支持边框、中文名称、组件目录和标注开关。Dev 使用 Prob 当前的界面和数据，每次请求自动读取最新前端资源地址，文件保存在 `tools/component-map`。两个版本均由 systemd 用户服务后台运行；用户指定的端口、上游、域名或数据根目录优先。
@@ -83,3 +85,26 @@ without adding menu entries. The browser preserves columns, filters, pagination
 and the active sample when normalizing a link. Imports must target the canonical
 ID; alias writes and colliding identities fail explicitly. The shared GeoBanana
 collection is `sft-e6-r30`, with `sft-e6.1-r30` retained as a read-only alias.
+
+## Scoring 模式
+
+`/scoring` 用于人工盲评：每个 item 显示原图和两个匿名候选标注（Candidate 1 / 2），评审选择 `1`、`2` 或 `tie` 并写理由。哪个候选是预测（`blind_map`）只保存在服务端，界面仅能通过确认后的 Reveal 操作查看，且会记入该评审此后为该 item 保存的标签（`revealed: true`）。
+
+- 评审名首次输入后保存在浏览器 localStorage（`[A-Za-z0-9_-]{1,32}`，不能以 `agent-` 开头）。
+- 侧栏：scoring set、prefill（`agent-*` 标签集）、pair / 已标注 / 与 prefill 一致或不一致的过滤、进度 `已标注/总数`、导出 JSONL。
+- item 视图：任务文本、presentation 切换（如 overlay / outline / 拼接画布）、点击图片打开复用的大图弹窗；只读显示所选 prefill 的选择、理由和可选 regions；评审尚无标签时以 prefill 预填可编辑的选择和理由。快捷键 `1` `2` `t` 选择，`n` `p` 切换，在理由框中 Ctrl/Cmd+Enter 保存。
+- 深链接：`/scoring?set=<set>&item=<item>&prefill=<agent-…>&pres=<presentation>&pair=…&status=labelled|unlabelled&agree=agree|disagree`；`prefill=`（空值）表示明确不使用 prefill。
+
+数据目录默认 `data/scoring`，可用 `T2I_SCORING_ROOT` 设置；演示数据：`T2I_SCORING_ROOT=fixtures/scoring pnpm start`（会向 fixture 写入标签，演示时请先复制）。目录结构：
+
+```text
+<set_id>/set.json                  # 集合说明、来源 cohort/round、blind_seed、评审说明、presentations
+<set_id>/items.jsonl               # 每行一个 item，含 blind_map（不发送给前端）
+<set_id>/assets/...                # 图片，只能通过 item/presentation/角色访问
+<set_id>/labels/<reviewer>.jsonl   # 只追加；每个 item 以最后一行为当前标签
+<set_id>/labels/agent-<round>-<judge>-<effort>.jsonl  # 只读的 agent 预填结果
+```
+
+服务端除了追加 `labels/<reviewer>.jsonl` 外全部只读，没有删除或覆盖接口；`agent-*` 标签集拒绝写入。格式、Schema 和接口见 [spec.md](spec.md#scoring-模式)。fixture 由 `pnpm exec tsx tools/create-scoring-fixtures.ts` 生成，favicon 由 `pnpm exec tsx tools/create-favicon.ts` 生成。
+
+旧域名跳转：设置 `COVIS_REDIRECT_HOSTS=dive.ouruizhe.top` 和 `COVIS_CANONICAL_ORIGIN=https://covis.ouruizhe.top` 后，Host 为该域名的请求收到 302，跳到规范域名下的相同路径和查询；两个变量都未设置时不跳转。跳转先于 Host 白名单检查，因此旧域名无需加入 `T2I_ALLOWED_HOSTS`，规范域名需要加入。

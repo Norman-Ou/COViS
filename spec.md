@@ -65,7 +65,7 @@ catalog/records 使用元数据快照 ETag；自动刷新在后台检查元数�
 
 ## 浏览和比较
 
-首页数据集卡片只有 collection title，高度随内容撑开，上下内边距 12px。首页标题、圆角搜索框、数量摘要及卡片区左边对齐。数据集名称和 ID 支持模糊搜索：忽略大小写、空白和分隔符，按输入字符顺序匹配不连续片段。应用名称为 DiVE，浏览器标题与名称栏一致，favicon 为白底黑字 SVG（同时提供 16/32/48px ICO）。点击顶部 DiVE 名称回到首页，清空当前数据集、对比列及样本搜索，支持浏览器前进／后退。顶部名称栏只显示 DiVE，不含操作按钮；侧栏顶部左侧使用箭头收起／展开，底部左侧使用 SVG 图标 Reload data。桌面收起后保留 44px 窄栏和两个图标，展开时恢复已保存宽度；侧栏中间控制区独立滚动。任务名称首字母大写，GCG/VGD 全大写、Relative Height 分词。任务卡片只显示名称和展开按钮，高度随内容撑开，上下内边距 8px。来源图标按声明的原生/衍生分类显示。
+首页数据集卡片只有 collection title，高度随内容撑开，上下内边距 12px。首页标题、圆角搜索框、数量摘要及卡片区左边对齐。数据集名称和 ID 支持模糊搜索：忽略大小写、空白和分隔符，按输入字符顺序匹配不连续片段。应用名称为 COViS，浏览器标题与名称栏一致，favicon 为白底黑字 “CO/ViS” SVG（同时提供 16/32/48px ICO）。首页标题为 COViS。点击顶部 COViS 名称回到首页，清空当前数据集、对比列及样本搜索，支持浏览器前进／后退。顶部名称栏只显示 COViS 和右侧的模式导航（T2I-Explorer、Scoring，当前模式高亮，链接返回各模式本标签页上次的查询），不含操作按钮；侧栏顶部左侧使用箭头收起／展开，底部左侧使用 SVG 图标 Reload data。桌面收起后保留 44px 窄栏和两个图标，展开时恢复已保存宽度；侧栏中间控制区独立滚动。任务名称首字母大写，GCG/VGD 全大写、Relative Height 分词。任务卡片只显示名称和展开按钮，高度随内容撑开，上下内边距 8px。来源图标按声明的原生/衍生分类显示。
 
 侧栏从上到下为 Dataset、View by（Task/Exp）、Search examples、已选列、Page size。已选列与对比列头使用同一单行标题：任务-数据来源-实验；超长省略并提供完整标题提示。Task 模式选择顺序 task → dataset → exp；Exp 模式 exp → task → dataset，只列实际存在的实验。卡片下拉和侧栏添加列均使用级联菜单，每层向右展开并保留之前的层级；切换父项替换右侧分支，最终选择才添加列。各列独立纵向滚动，空间不足时菜单内部横向滚动。切换模式保留列和浏览状态。同一实验允许多个独立列实例，列可排序、删除，菜单在选择、点击外部和 Escape 时关闭。
 
@@ -82,3 +82,35 @@ Input/Pred/GT 均显示。合法 `<p>airplane-3<color>(254, 91, 109)</color></p>
 ## URL
 
 collection 导航保持 `?dataset=sft-e6.0-r30`。列为 `cols=task:dataset:exp:instance,...`；active 为 `task:dataset:exp:instance:sample_id`。不接受三段旧列格式，不将旧 active 中的数字序号转换为 sample_id。可持久化 mode、q、page、pageSize，页面刷新和浏览器历史还原状态。旧链接的 order、seed 被忽略并从 URL 清除。无效或未发布的列移除，不转换为默认实验。
+
+## Scoring 模式
+
+路径 `/scoring`（服务端对非 API 路径返回 index.html，前端按路径选择模式；模式切换为整页跳转，T2I-Explorer 的路由和 URL 状态不变）。数据根目录 `T2I_SCORING_ROOT`，默认 `data/scoring`。Schema：[scoring-set](schemas/scoring-set.schema.json)、[scoring-item](schemas/scoring-item.schema.json)、[scoring-label](schemas/scoring-label.schema.json)；示例：`fixtures/scoring/pj-demo/`。
+
+`set.json`（`id` 必须等于目录名；未知字段如 `prefill_gaps`、`skipped_items`、脱敏日志被忽略且不发送给前端）：
+
+```json
+{"schema_version":1,"id":"pj-demo","title":"Pairwise judge demo","source":{"cohort":"pj-e61-r30-v1","round":"round-01"},"blind_seed":42,"instructions":"…","presentations":[{"id":"overlay","title":"Overlay"},{"id":"side_by_side","title":"Side by side"}]}
+```
+
+`items.jsonl` 每行一个 item，`item_id` 唯一并匹配 ID 规则；`presentations` 的键必须在 `set.json` 声明，界面按声明顺序显示。两种形态：逐候选图片（三个路径），或拼接画布（`candidate_1`/`candidate_2` 为 null，`views` 为 1–8 张同时包含两个候选、并在画布上标注 Candidate 1 / 2 的图片）。`blind_map.pred`、`blind_map.gt` 分别为 1、2 之一且不同。`metadata` 会原样发给前端，不能包含能识别候选的信息。
+
+```json
+{"item_id":"demo-refseg-01","pair":"refseg/sior-t","task":"refseg","task_text":"Segment …","presentations":{"overlay":{"original":"assets/…/original.png","candidate_1":"assets/…/candidate_1.png","candidate_2":"assets/…/candidate_2.png"},"side_by_side":{"original":"assets/…/original.png","candidate_1":null,"candidate_2":null,"views":["assets/…/view_1.png"]}},"blind_map":{"pred":1,"gt":2},"metadata":{}}
+```
+
+`labels/<name>.jsonl` 每行一个标签，同一 item 以最后一个有效行为当前值；无法解析或不符合 schema 的行被跳过并计入 `invalid_rows`。字段：`item_id`、`choice`（整数 `1`、`2` 或字符串 `"tie"`）、`reason`（≤4000 字符，可为空）、可选 `regions`（`[{window_id, present: yes|no|unsure, note?}]`）、`source`（人工为 `human`；agent 建议 `agent:<round>/<judge>/<effort>`）、可选 `revealed`、可选 `prefill`（保存时显示的 agent 标签集名）、可选 `confidence`（0–1）、`updated_at`（服务端写入的 ISO 8601 UTC 时间）。读取时允许其他附加字段。标签集名匹配 `[A-Za-z0-9_-]{1,32}`；以 `agent-`（不区分大小写）开头的是只读 prefill 来源。
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/scoring/sets` | 集合列表（id、title、item_count、label_sets）及无效集合诊断 |
+| GET | `/api/scoring/sets/:set` | set（仅已知字段）、items（不含 `blind_map` 和资源路径；每个 presentation 为 `{kind:"candidates", original, candidate_1, candidate_2}` 或 `{kind:"composite", original, views[]}`，各含 url/thumbnail_url）、label_sets |
+| GET | `/api/scoring/sets/:set/labels/:reviewer` | 当前标签（每 item 最后一行，按 item 顺序）、row_count、invalid_rows、read_only；无文件时为空 |
+| POST | `/api/scoring/sets/:set/labels/:reviewer` | 追加一行。请求体 `item_id, choice, reason, regions?, source?, revealed?, prefill?`；服务端补 `updated_at`，默认 `source: "human"`，返回 201 和写入的行。`agent-*` 返回 403；评审名、请求体或未知 item 返回 400；跨源 Origin 返回 403 |
+| GET | `/api/scoring/sets/:set/labels/:reviewer/export` | 当前标签 JSONL 下载（`<set>__<reviewer>.jsonl`） |
+| POST | `/api/scoring/sets/:set/items/:item/reveal` | 请求体 `{reviewer}`，返回 `{item_id, blind_map}`；唯一返回 `blind_map` 的接口 |
+| GET | `/api/scoring/media/:set/:item/:presentation/:role` | role 为 `original`、`candidate_1`、`candidate_2` 或 `view_<n>`；`?variant=thumbnail` 同实验图片 |
+
+写入：每行以单次 `write(2)` 追加到 `O_APPEND|O_NOFOLLOW` 打开的文件并 `fdatasync`，同一文件在进程内串行；不同评审写不同文件，互不覆盖。没有删除、覆盖或 PUT/PATCH 接口。Reveal 后，该评审此后为该 item 写入的所有行都标记 `revealed: true`（服务端强制，且一旦文件中出现即保持）；前端同时在 localStorage 记住已显示的 `blind_map`。
+
+旧域名跳转：`COVIS_REDIRECT_HOSTS`（逗号分隔）中的 Host 收到 302 到 `COVIS_CANONICAL_ORIGIN` + 原路径和查询，先于 Host 白名单；只设其一时启动失败，均未设置时关闭。

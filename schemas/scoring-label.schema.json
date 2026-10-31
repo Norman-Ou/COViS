@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "covis/scoring-label",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "item_id",
+    "choice",
+    "reason",
+    "source",
+    "updated_at"
+  ],
+  "properties": {
+    "item_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+    },
+    "choice": {
+      "enum": [
+        1,
+        2,
+        "tie"
+      ]
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 4000
+    },
+    "regions": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "window_id",
+          "present"
+        ],
+        "properties": {
+          "window_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "present": {
+            "enum": [
+              "yes",
+              "no",
+              "unsure"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        }
+      }
+    },
+    "source": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9:._/-]{0,127}$"
+    },
+    "revealed": {
+      "type": "boolean"
+    },
+    "prefill": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,32}$"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "metadata": {
+      "type": "object"
+    },
+    "updated_at": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    }
+  }
+}

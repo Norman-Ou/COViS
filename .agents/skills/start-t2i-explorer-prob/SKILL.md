@@ -5,6 +5,8 @@ description: Start, restart, or restore the T2I Explorer Prob production viewer 
 
 # 启动 T2I Explorer Prob 版（4173）
 
+应用现名 COViS（T2I-Explorer 与 Scoring 两个模式），规范域名为 `covis.ouruizhe.top`。服务改名、迁移到新 checkout 和 tunnel 调整由部署任务完成；在此之前沿用下列 unit 与域名。若旧域名需要跳转，在应用服务中加入 `Environment="COVIS_REDIRECT_HOSTS=dive.ouruizhe.top"`、`Environment="COVIS_CANONICAL_ORIGIN=https://covis.ouruizhe.top"`，并把 `covis.ouruizhe.top` 加入 `T2I_ALLOWED_HOSTS`；Scoring 数据根目录用 `T2I_SCORING_ROOT`（默认 `<repo>/data/scoring`）。
+
 `prob` 是用户对正式版的命名。构建当前代码，使用 systemd 用户服务常驻运行，并通过已有 Cloudflare Tunnel 提供访问。默认本地端口 **4173**，公网地址 **https://dive.ouruizhe.top**；用户指定的域名、端口、数据根目录优先。组件标注版使用另一个 skill [start-t2i-explorer-dev](../start-t2i-explorer-dev/SKILL.md)，默认 4180。
 
 ## 本机约定

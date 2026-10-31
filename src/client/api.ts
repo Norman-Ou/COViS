@@ -1,6 +1,6 @@
 import type { CatalogResponse, ExperimentResponse } from "../shared/contracts.js";
 import { backoff, isRetryable, requestAttempt, retryDelay, RETRY_DELAYS } from './request.js';
-async function json<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
+export async function json<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
     for (let attempt = 0; ; attempt++) {
         try { return await requestAttempt(input, init ?? {}, 20_000, response => response.json() as Promise<T>); }
         catch (error) {
