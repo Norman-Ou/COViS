@@ -93,7 +93,7 @@ collection 导航保持 `?dataset=sft-e6.0-r30`。列为 `cols=task:dataset:exp:
 {"schema_version":1,"id":"pj-demo","title":"Pairwise judge demo","source":{"cohort":"pj-e61-r30-v1","round":"round-01"},"blind_seed":42,"instructions":"…","presentations":[{"id":"overlay","title":"Overlay"},{"id":"side_by_side","title":"Side by side"}]}
 ```
 
-`items.jsonl` 每行一个 item，`item_id` 唯一并匹配 ID 规则；`presentations` 的键必须在 `set.json` 声明，界面按声明顺序显示。两种形态：逐候选图片（三个路径），或拼接画布（`candidate_1`/`candidate_2` 为 null，`views` 为 1–8 张同时包含两个候选、并在画布上标注 Candidate 1 / 2 的图片）。`blind_map.pred`、`blind_map.gt` 分别为 1、2 之一且不同。`metadata` 会原样发给前端，不能包含能识别候选的信息。
+`items.jsonl` 每行一个 item，`item_id` 唯一并匹配 ID 规则；`presentations` 的键必须在 `set.json` 声明，界面按声明顺序显示。两种形态：逐候选图片（三个路径），或拼接画布（`candidate_1`/`candidate_2` 为 null，`views` 为 1–16 张同时包含两个候选、并在画布上标注 Candidate 1 / 2 的图片）。`blind_map.pred`、`blind_map.gt` 分别为 1、2 之一且不同。`metadata` 会原样发给前端，不能包含能识别候选的信息。
 
 ```json
 {"item_id":"demo-refseg-01","pair":"refseg/sior-t","task":"refseg","task_text":"Segment …","presentations":{"overlay":{"original":"assets/…/original.png","candidate_1":"assets/…/candidate_1.png","candidate_2":"assets/…/candidate_2.png"},"side_by_side":{"original":"assets/…/original.png","candidate_1":null,"candidate_2":null,"views":["assets/…/view_1.png"]}},"blind_map":{"pred":1,"gt":2},"metadata":{}}

@@ -125,7 +125,7 @@ export class ScoringStore {
     async asset(setId: string, itemId: string, presentation: string, role: string) {
         const { dir, items } = await this.loadSet(setId);
         const assets = items.find(item => item.item_id === itemId)?.presentations[presentation];
-        const view = /^view_([1-9][0-9]?)$/.exec(role);
+        const view = /^view_([1-9]|1[0-6])$/.exec(role); // MAX_COMPOSITE_VIEWS
         const asset = !assets ? undefined
             : view ? assets.views?.[Number(view[1]) - 1]
             : (SCORING_ROLES as readonly string[]).includes(role) ? assets[role as ScoringRole] : undefined;

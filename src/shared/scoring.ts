@@ -3,7 +3,7 @@ import { idPattern, type JsonObject } from './contracts.js';
 /** Scoring mode: blind pairwise review of two candidate annotations per item. */
 export const SCORING_ROLES = ['original', 'candidate_1', 'candidate_2'] as const;
 export type ScoringRole = typeof SCORING_ROLES[number];
-export const MAX_COMPOSITE_VIEWS = 8;
+export const MAX_COMPOSITE_VIEWS = 16;
 /** Either per-candidate images, or a composite: candidates null plus `views` canvases that show both. */
 export type ScoringPresentationAssets =
     | { original: string; candidate_1: string; candidate_2: string; views?: undefined }

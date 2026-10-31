@@ -155,3 +155,19 @@ it('serves no sets without a scoring root', async () => {
     expect((await app.inject({ url: '/api/scoring/sets', headers: host })).json()).toEqual({ sets: [], diagnostics: [] });
     expect((await app.inject({ url: base, headers: host })).statusCode).toBe(404);
 });
+
+it('accepts composite presentations with up to 16 views and rejects 17', async () => {
+    const { app, setDir } = await setup();
+    const file = path.join(setDir, 'items.jsonl');
+    const items = (await readFile(file, 'utf8')).trim().split('\n').map(line => JSON.parse(line));
+    const composite = items[6].presentations.side_by_side;
+    composite.views = Array.from({ length: 16 }, () => composite.views[0]);
+    await writeFile(file, items.map(item => JSON.stringify(item)).join('\n') + '\n');
+    const body = (await app.inject({ url: base, headers: host })).json();
+    expect(body.items[6].presentations.side_by_side.views).toHaveLength(16);
+    expect((await app.inject({ url: '/api/scoring/media/pj-demo/demo-composite-01/side_by_side/view_16', headers: host })).statusCode).toBe(200);
+    expect((await app.inject({ url: '/api/scoring/media/pj-demo/demo-composite-01/side_by_side/view_17', headers: host })).statusCode).toBe(404);
+    composite.views.push(composite.views[0]);
+    await writeFile(file, items.map(item => JSON.stringify(item)).join('\n') + '\n');
+    expect((await app.inject({ url: base, headers: host })).statusCode).toBe(422);
+});
