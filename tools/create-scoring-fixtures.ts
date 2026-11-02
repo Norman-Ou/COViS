@@ -3,7 +3,7 @@
 import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import sharp from 'sharp';
-import type { ScoringItemRecord, ScoringLabelRow, ScoringSetManifest } from '../src/shared/scoring.js';
+import type { ScoringCandidateTexts, ScoringItemRecord, ScoringLabelRow, ScoringSetManifest } from '../src/shared/scoring.js';
 
 const SIZE = 128;
 const setId = 'pj-demo';
@@ -75,6 +75,28 @@ async function sideBySide(first: Buffer, second: Buffer) {
 const png = (pixels: Buffer) => sharp(pixels, { raw: { width: SIZE, height: SIZE, channels: 3 } }).png({ compressionLevel: 9 }).toBuffer();
 
 const presentations = [{ id: 'overlay', title: 'Overlay' }, { id: 'outline', title: 'Outline' }, { id: 'side_by_side', title: 'Side by side' }];
+// Grounded captions keyed by blind candidate number; `[phrase]` chips use each phrase's mask colour.
+const texts: Record<string, ScoringCandidateTexts> = {
+    'demo-refseg-01': {
+        1: { caption: 'A [large storage tank] sits in the upper left beside [bare ground].', phrases: [{ name: 'large storage tank', rgb: [255, 200, 0] }, { name: 'bare ground', rgb: [86, 180, 233] }] },
+        2: { caption: 'The round [storage tank] in the upper left.', phrases: [{ name: 'storage tank', rgb: [255, 200, 0] }] }
+    },
+    'demo-composite-01': {
+        1: { caption: 'A [vehicle] is parked beside a [building].', phrases: [{ name: 'vehicle', rgb: [230, 159, 0] }, { name: 'building', rgb: [0, 114, 178] }] },
+        2: { caption: 'A [vehicle] is parked next to the building [roof].', phrases: [{ name: 'vehicle', rgb: [230, 159, 0] }, { name: 'parking lot', rgb: [0, 158, 115] }] }
+    },
+    // Class tasks: the declared class list; `unlisted` classes are outside the task legend and drawn grey.
+    'demo-semantic-01': {
+        1: { caption: '[building], [road]', phrases: [{ name: 'building', rgb: [255, 200, 0] }, { name: 'road', rgb: [128, 128, 128], unlisted: true }] },
+        2: { caption: '[building]', phrases: [{ name: 'building', rgb: [255, 200, 0] }] }
+    }
+};
+// Raw instruction given to both candidates.
+const inputs: Record<string, string> = {
+    'demo-refseg-01': 'Please segment the large storage tank in the upper left of this remote sensing image and output its mask.',
+    'demo-semantic-01': 'Segment every building in this image. Output a mask where each class uses its legend colour.',
+    'demo-composite-01': 'Describe the image and ground each mentioned object with a mask.'
+};
 const specs: Array<{ id: string; pair: string; task: string; text: string; pred: Mask; gt: Mask; predIs: 1 | 2; presentations: string[] }> = [
     { id: 'demo-refseg-01', pair: 'refseg/sior-t', task: 'refseg', text: 'Segment the large storage tank in the upper left.', pred: disk(40, 40, 22), gt: disk(42, 38, 18), predIs: 1, presentations: ['overlay', 'outline', 'side_by_side'] },
     { id: 'demo-refseg-02', pair: 'refseg/sior-t', task: 'refseg', text: 'Segment the bridge crossing the river.', pred: box([10, 56, 118, 74]), gt: box([10, 58, 100, 72]), predIs: 2, presentations: ['overlay', 'outline'] },
@@ -115,7 +137,7 @@ for (const [index, spec] of specs.entries()) {
         await writeFile(path.join(dir, 'candidate_2.png'), await png(draw(base, candidates[1]!)));
         record[presentation] = { original: `${rel}/original.png`, candidate_1: `${rel}/candidate_1.png`, candidate_2: `${rel}/candidate_2.png` };
     }
-    items.push({ item_id: spec.id, pair: spec.pair, task: spec.task, task_text: spec.text, presentations: record, blind_map: { pred: spec.predIs, gt: spec.predIs === 1 ? 2 : 1 }, metadata: { fixture: true } });
+    items.push({ item_id: spec.id, pair: spec.pair, task: spec.task, task_text: spec.text, ...(inputs[spec.id] ? { input_text: inputs[spec.id] } : {}), presentations: record, blind_map: { pred: spec.predIs, gt: spec.predIs === 1 ? 2 : 1 }, metadata: { fixture: true }, ...(texts[spec.id] ? { candidate_texts: texts[spec.id] } : {}) });
 }
 const prefill: ScoringLabelRow[] = [
     { item_id: 'demo-refseg-01', choice: 2, reason: 'Candidate 2 follows the tank rim; candidate 1 spills onto the ground.', confidence: 0.7 },

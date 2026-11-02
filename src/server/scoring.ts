@@ -110,6 +110,9 @@ export class ScoringStore {
         // blind_map and asset paths stay on the server.
         const views: ScoringItemView[] = items.map((item, index) => ({
             item_id: item.item_id, index: index + 1, pair: item.pair, task: item.task, task_text: item.task_text, metadata: item.metadata ?? {},
+            // input_text is shared by both candidates; candidate_texts is keyed by blind candidate number already. Both pass through unchanged.
+            ...(item.input_text !== undefined ? { input_text: item.input_text } : {}),
+            ...(item.candidate_texts ? { candidate_texts: item.candidate_texts } : {}),
             presentations: Object.fromEntries(manifest.presentations.filter(p => item.presentations[p.id]).map(p => {
                 const assets = item.presentations[p.id]!;
                 const media = (role: string) => { const url = mediaUrl(setId, item.item_id, p.id, role); return { url, thumbnail_url: `${url}?variant=thumbnail` }; };

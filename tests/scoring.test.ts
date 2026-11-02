@@ -171,3 +171,34 @@ it('accepts composite presentations with up to 16 views and rejects 17', async (
     await writeFile(file, items.map(item => JSON.stringify(item)).join('\n') + '\n');
     expect((await app.inject({ url: base, headers: host })).statusCode).toBe(422);
 });
+
+it('passes input_text and candidate_texts through unchanged and rejects malformed ones', async () => {
+    const { app, setDir } = await setup();
+    const file = path.join(setDir, 'items.jsonl');
+    const source = (await readFile(file, 'utf8')).trim().split('\n').map(line => JSON.parse(line));
+    const body = (await app.inject({ url: base, headers: host })).json();
+    const byId = (id: string) => body.items.find((item: { item_id: string }) => item.item_id === id);
+    for (const id of ['demo-refseg-01', 'demo-semantic-01', 'demo-composite-01']) {
+        const row = source.find(item => item.item_id === id);
+        expect(byId(id).candidate_texts).toEqual(row.candidate_texts);
+        expect(byId(id).input_text).toBe(row.input_text);
+    }
+    expect(byId('demo-semantic-01').candidate_texts['1'].phrases[1]).toEqual({ name: 'road', rgb: [128, 128, 128], unlisted: true });
+    expect(byId('demo-refseg-02')).not.toHaveProperty('candidate_texts');
+    expect(byId('demo-refseg-02')).not.toHaveProperty('input_text');
+    const texts = source[0].candidate_texts;
+    const phrase = texts['1'].phrases[0];
+    for (const [key, value] of [
+        ['candidate_texts', { ...texts, 3: texts['1'] }], ['candidate_texts', { 1: texts['1'] }],
+        ['candidate_texts', { ...texts, 1: { ...texts['1'], phrases: [{ ...phrase, rgb: [256, 0, 0] }] } }],
+        ['candidate_texts', { ...texts, 1: { ...texts['1'], phrases: [{ ...phrase, rgb: [0, 0] }] } }],
+        ['candidate_texts', { ...texts, 1: { ...texts['1'], phrases: [{ ...phrase, unlisted: 'yes' }] } }],
+        ['candidate_texts', { ...texts, 1: { ...texts['1'], extra: 1 } }],
+        ['input_text', 'x'.repeat(8001)], ['input_text', 7]
+    ] as const) {
+        await writeFile(file, [{ ...source[0], [key]: value }, ...source.slice(1)].map(item => JSON.stringify(item)).join('\n') + '\n');
+        const response = await app.inject({ url: base, headers: host });
+        expect(response.statusCode).toBe(422);
+        expect(response.json().error.code).toBe('SCORING_SET_INVALID');
+    }
+});

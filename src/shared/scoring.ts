@@ -9,6 +9,13 @@ export type ScoringPresentationAssets =
     | { original: string; candidate_1: string; candidate_2: string; views?: undefined }
     | { original: string; candidate_1: null; candidate_2: null; views: string[] };
 export type ScoringChoice = 1 | 2 | 'tie';
+/**
+ * One candidate's grounded caption (GCG) or declared class list (class tasks): each phrase appears once as `[name]`;
+ * `rgb` is its mask colour in that candidate's images; `unlisted` marks a class outside the task legend (drawn grey).
+ */
+export type ScoringCandidateText = { caption: string; phrases: Array<{ name: string; rgb: [number, number, number]; unlisted?: boolean }> };
+/** Keyed by BLIND candidate number (the exporter already applied the blind map), so it is safe to send to the client. */
+export type ScoringCandidateTexts = Record<'1' | '2', ScoringCandidateText>;
 export const reviewerPattern = '^[A-Za-z0-9_-]{1,32}$';
 /** Label sets whose name starts with `agent-` are read-only prefill sources. */
 export const isAgentLabelSet = (name: string) => /^agent-/i.test(name);
@@ -29,8 +36,11 @@ export type ScoringItemRecord = {
     pair: string;
     task: string;
     task_text: string;
+    /** Raw instruction given to both candidates (identical for both). */
+    input_text?: string;
     presentations: Record<string, ScoringPresentationAssets>;
     blind_map: { pred: 1 | 2; gt: 1 | 2 };
+    candidate_texts?: ScoringCandidateTexts;
     metadata?: JsonObject;
 };
 export type ScoringRegion = { window_id: string; present: 'yes' | 'no' | 'unsure'; note?: string };
@@ -59,7 +69,9 @@ export type ScoringItemView = {
     pair: string;
     task: string;
     task_text: string;
+    input_text?: string;
     presentations: Record<string, ScoringPresentationView>;
+    candidate_texts?: ScoringCandidateTexts;
     metadata: JsonObject;
 };
 export type ScoringLabelSetSummary = { name: string; read_only: boolean };
@@ -92,6 +104,14 @@ const regions = {
     type: 'array', maxItems: 64,
     items: { type: 'object', additionalProperties: false, required: ['window_id', 'present'], properties: { window_id: { type: 'string', minLength: 1, maxLength: 128 }, present: { enum: ['yes', 'no', 'unsure'] }, note: { type: 'string', maxLength: 2000 } } }
 };
+const candidateText = {
+    type: 'object', additionalProperties: false, required: ['caption', 'phrases'],
+    properties: {
+        caption: { type: 'string', maxLength: 8000 },
+        phrases: { type: 'array', maxItems: 64, items: { type: 'object', additionalProperties: false, required: ['name', 'rgb'], properties: {
+            name: { type: 'string', maxLength: 256 }, rgb: { type: 'array', minItems: 3, maxItems: 3, items: { type: 'integer', minimum: 0, maximum: 255 } }, unlisted: { type: 'boolean' } } } }
+    }
+};
 export const scoringSetSchema = {
     $id: 'covis/scoring-set', type: 'object', additionalProperties: true,
     required: ['schema_version', 'id', 'title', 'source', 'blind_seed', 'instructions', 'presentations'],
@@ -107,7 +127,7 @@ export const scoringItemSchema = {
     $id: 'covis/scoring-item', type: 'object', additionalProperties: false,
     required: ['item_id', 'pair', 'task', 'task_text', 'presentations', 'blind_map'],
     properties: {
-        item_id: id, pair: { type: 'string', minLength: 1, maxLength: 256 }, task: { type: 'string', minLength: 1, maxLength: 128 }, task_text: { type: 'string', maxLength: 8000 },
+        item_id: id, pair: { type: 'string', minLength: 1, maxLength: 256 }, task: { type: 'string', minLength: 1, maxLength: 128 }, task_text: { type: 'string', maxLength: 8000 }, input_text: { type: 'string', maxLength: 8000 },
         presentations: {
             type: 'object', minProperties: 1, maxProperties: 16, propertyNames: { pattern: idPattern },
             additionalProperties: {
@@ -120,6 +140,7 @@ export const scoringItemSchema = {
             }
         },
         blind_map: { type: 'object', additionalProperties: false, required: ['pred', 'gt'], properties: { pred: { enum: [1, 2] }, gt: { enum: [1, 2] } } },
+        candidate_texts: { type: 'object', additionalProperties: false, required: ['1', '2'], properties: { 1: candidateText, 2: candidateText } },
         metadata: { type: 'object' }
     }
 } as const;

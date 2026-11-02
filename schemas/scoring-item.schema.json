@@ -30,6 +30,10 @@
       "type": "string",
       "maxLength": 8000
     },
+    "input_text": {
+      "type": "string",
+      "maxLength": 8000
+    },
     "presentations": {
       "type": "object",
       "minProperties": 1,
@@ -133,6 +137,106 @@
             1,
             2
           ]
+        }
+      }
+    },
+    "candidate_texts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "1",
+        "2"
+      ],
+      "properties": {
+        "1": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "caption",
+            "phrases"
+          ],
+          "properties": {
+            "caption": {
+              "type": "string",
+              "maxLength": 8000
+            },
+            "phrases": {
+              "type": "array",
+              "maxItems": 64,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "rgb"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 256
+                  },
+                  "rgb": {
+                    "type": "array",
+                    "minItems": 3,
+                    "maxItems": 3,
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 255
+                    }
+                  },
+                  "unlisted": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "2": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "caption",
+            "phrases"
+          ],
+          "properties": {
+            "caption": {
+              "type": "string",
+              "maxLength": 8000
+            },
+            "phrases": {
+              "type": "array",
+              "maxItems": 64,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "rgb"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 256
+                  },
+                  "rgb": {
+                    "type": "array",
+                    "minItems": 3,
+                    "maxItems": 3,
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 255
+                    }
+                  },
+                  "unlisted": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },

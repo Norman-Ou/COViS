@@ -1,5 +1,5 @@
 import type { SampleView } from "../shared/contracts.js";
-import { isAgentLabelSet, reviewerPattern, type ScoringItemView, type ScoringLabelRow, type ScoringRevealResponse } from "../shared/scoring.js";
+import { isAgentLabelSet, reviewerPattern, type ScoringCandidateText, type ScoringItemView, type ScoringLabelRow, type ScoringRevealResponse } from "../shared/scoring.js";
 import type { ScoringViewState } from "./scoringUrlState.js";
 
 export const REVIEWER_KEY = "covis.reviewer";
@@ -8,6 +8,30 @@ type BlindMap = ScoringRevealResponse["blind_map"];
 /** "Candidate n", or "Candidate n · GT / Prediction" when Real mode has the item's reveal. */
 export const candidateTitle = (candidate: 1 | 2, roles?: BlindMap) => `Candidate ${candidate}${roles ? ` · ${roles.gt === candidate ? "GT" : "Prediction"}` : ""}`;
 export const revealedKey = (setId: string, reviewer: string) => `covis.revealed.${setId}.${reviewer}`;
+
+type Rgb = ScoringCandidateText["phrases"][number]["rgb"];
+export type CaptionSegment = { text: string; phrase?: ScoringCandidateText["phrases"][number] };
+/** Split a grounded caption into text and `[phrase]` chips; brackets naming no declared phrase stay plain text. */
+export function captionSegments({ caption, phrases }: ScoringCandidateText): CaptionSegment[] {
+    const byName = new Map(phrases.map(phrase => [phrase.name, phrase]));
+    const segments: CaptionSegment[] = [];
+    let last = 0;
+    for (const match of caption.matchAll(/\[([^[\]]+)\]/g)) {
+        const phrase = byName.get(match[1]!);
+        if (!phrase) continue;
+        if (match.index > last) segments.push({ text: caption.slice(last, match.index) });
+        segments.push({ text: phrase.name, phrase });
+        last = match.index + match[0].length;
+    }
+    if (last < caption.length) segments.push({ text: caption.slice(last) });
+    return segments;
+}
+/** CSS colours for a phrase chip: its rgb background with black or white text by relative luminance. */
+export function phraseColors([r, g, b]: Rgb) {
+    const linear = (value: number) => { const c = value / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+    const luminance = 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b);
+    return { backgroundColor: `rgb(${r}, ${g}, ${b})`, color: luminance > 0.179 ? "#000" : "#fff" };
+}
 
 /** Human reviewer names: the server pattern, minus the reserved read-only `agent-` prefix. */
 export function validReviewerName(name: string) { return REVIEWER.test(name) && !isAgentLabelSet(name); }

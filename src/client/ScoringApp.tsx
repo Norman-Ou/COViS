@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { ChevronLeft, ChevronRight, Download, Eye } from "lucide-react";
-import { isAgentLabelSet, type ScoringChoice, type ScoringLabelRow, type ScoringLabelsResponse, type ScoringRevealResponse, type ScoringSetResponse, type ScoringSetsResponse } from "../shared/scoring.js";
+import { isAgentLabelSet, type ScoringCandidateTexts, type ScoringChoice, type ScoringLabelRow, type ScoringLabelsResponse, type ScoringRevealResponse, type ScoringSetResponse, type ScoringSetsResponse } from "../shared/scoring.js";
 import { Lightbox } from "./Lightbox.js";
 import { MediaPanels } from "./MediaPanels.js";
 import { scoringApi } from "./scoringApi.js";
-import { candidateTitle, filterItems, readRevealed, readReviewer, revealedKey, REVIEWER_KEY, scoringRecord, validReviewerName } from "./scoringModel.js";
+import { candidateTitle, captionSegments, filterItems, phraseColors, readRevealed, readReviewer, revealedKey, REVIEWER_KEY, scoringRecord, validReviewerName } from "./scoringModel.js";
 import { parseScoringState, serializeScoringState, type ScoringViewState } from "./scoringUrlState.js";
 import { TopBar } from "./TopBar.js";
 
@@ -15,6 +15,20 @@ function Regions({ row }: { row: ScoringLabelRow }) {
     if (!row.regions?.length) return null;
     return <table className="scoring-regions"><caption>Regions</caption><thead><tr><th scope="col">Window</th><th scope="col">Present</th><th scope="col">Note</th></tr></thead>
         <tbody>{row.regions.map((region, index) => <tr key={`${region.window_id}-${index}`}><td>{region.window_id}</td><td>{region.present}</td><td>{region.note ?? ""}</td></tr>)}</tbody></table>;
+}
+
+const UNLISTED = " (not in legend)";
+/** Each candidate's grounded caption or class list with phrase chips in that candidate's mask colours, then a phrase legend. Text nodes only. */
+function CandidateTexts({ texts, roles }: { texts: ScoringCandidateTexts; roles?: ScoringRevealResponse["blind_map"] }) {
+    return <section className="scoring-candidate-texts" aria-label="Candidate texts">{([1, 2] as const).map(candidate => {
+        const text = texts[`${candidate}`], title = candidateTitle(candidate, roles);
+        return <div key={candidate} className="scoring-candidate-text" role="group" aria-label={title}><h3>{title}</h3>
+            <p className="scoring-caption exact-text">{captionSegments(text).map((segment, index) => segment.phrase
+                ? <mark key={index} className={`scoring-phrase${segment.phrase.unlisted ? " unlisted" : ""}`} style={phraseColors(segment.phrase.rgb)} title={segment.phrase.unlisted ? "Not in the task legend (drawn grey)" : undefined}>{segment.text}</mark> : <span key={index}>{segment.text}</span>)}</p>
+            {text.phrases.length ? <ul className="scoring-phrase-legend" aria-label={`${title} phrases`}>{text.phrases.map((phrase, index) =>
+                <li key={index} className={phrase.unlisted ? "unlisted" : undefined}><span className="scoring-swatch" style={{ backgroundColor: phraseColors(phrase.rgb).backgroundColor }} aria-hidden="true"/>{phrase.name}{phrase.unlisted ? UNLISTED : ""}</li>)}</ul> : null}
+        </div>;
+    })}</section>;
 }
 
 function ReviewerPrompt({ initial, onSubmit, onCancel }: { initial?: string; onSubmit: (name: string) => void; onCancel?: () => void }) {
@@ -226,9 +240,11 @@ export function ScoringApp() {
                 </div>
                 {setData.set.instructions ? <details className="scoring-instructions"><summary>Instructions</summary><p>{setData.set.instructions}</p></details> : null}
                 <section className="scoring-task"><h3>Task</h3><p className="exact-text">{item.task_text}</p></section>
+                {item.input_text !== undefined ? <details className="scoring-input-text"><summary>Instruction</summary><p className="exact-text">{item.input_text}</p></details> : null}
                 {presentations.length > 1 ? <div className="view-mode-control scoring-presentations" role="group" aria-label="Presentation">{presentations.map(p => <button key={p.id} type="button" aria-pressed={p.id === presentation} onClick={() => updateView(state => ({ ...state, presentation: p.id }), true)}>{p.title}</button>)}</div> : null}
                 {composite ? <p className="muted scoring-composite-note">The composite canvas labels its halves Candidate 1 and Candidate 2.{roles ? ` Candidate 1 = ${roles.gt === 1 ? "GT" : "Prediction"}, Candidate 2 = ${roles.gt === 2 ? "GT" : "Prediction"}.` : ""}</p> : null}
                 <MediaPanels record={record} onOpen={button => { focusReturn.current = button; setLightboxOpen(true); }}/>
+                {item.candidate_texts ? <CandidateTexts texts={item.candidate_texts} roles={roles}/> : null}
                 <div className="scoring-columns">
                     <section className="scoring-prefill" aria-label="Prefilled verdict"><h3>Prefill{prefillName ? ` · ${prefillName}` : ""}</h3>
                         {!prefillName ? <p className="muted">No prefill selected.</p> : agent ? <><p><strong>{choiceLabel(agent.choice, roles)}</strong>{agent.confidence !== undefined ? <span className="muted"> · confidence {agent.confidence.toFixed(2)}</span> : null}</p><p className="exact-text">{agent.reason || <span className="muted">(no reason)</span>}</p><Regions row={agent}/></> : <p className="muted">{prefill ? "No prefilled verdict for this item." : "Loading…"}</p>}
@@ -249,7 +265,7 @@ export function ScoringApp() {
         </main>
         <Lightbox selection={lightboxOpen && record && item ? { taskTitle: item.pair, sourceTitle: item.task, expTitle: presentationTitle, record } : undefined}
             onClose={() => { setLightboxOpen(false); window.setTimeout(() => focusReturn.current?.focus(), 0); }}
-            details={item ? <div className="scoring-lightbox-details"><h3>Task</h3><p className="exact-text">{item.task_text}</p>{agent ? <><h3>Prefill · {prefillName}</h3><p><strong>{choiceLabel(agent.choice, roles)}</strong></p><p className="exact-text">{agent.reason}</p><Regions row={agent}/></> : null}{draft.choice !== undefined ? <><h3>Your choice</h3><p>{choiceLabel(draft.choice, roles)}</p></> : null}</div> : null}/>
+            details={item ? <div className="scoring-lightbox-details"><h3>Task</h3><p className="exact-text">{item.task_text}</p>{item.input_text !== undefined ? <><h3>Instruction</h3><p className="exact-text">{item.input_text}</p></> : null}{item.candidate_texts ? <CandidateTexts texts={item.candidate_texts} roles={roles}/> : null}{agent ? <><h3>Prefill · {prefillName}</h3><p><strong>{choiceLabel(agent.choice, roles)}</strong></p><p className="exact-text">{agent.reason}</p><Regions row={agent}/></> : null}{draft.choice !== undefined ? <><h3>Your choice</h3><p>{choiceLabel(draft.choice, roles)}</p></> : null}</div> : null}/>
     </div>);
 }
 
