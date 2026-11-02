@@ -1,4 +1,0 @@
-interface:
-  display_name: "启动 T2I Explorer Dev（4180）"
-  short_description: "启动 Dev 组件标注版（4180），随当前正式版同步前端资源和交互"
-  default_prompt: "使用 $start-t2i-explorer-dev 启动组件标注版，默认端口 4180，并验证组件名称和边框。"

@@ -18,12 +18,12 @@ pnpm start
 
 | 版本 | 启动 skill | 默认地址 |
 | --- | --- | --- |
-| Prob 正式版 | [start-t2i-explorer-prob](.agents/skills/start-t2i-explorer-prob/SKILL.md) | http://localhost:4173/ · https://covis.ouruizhe.top（旧域名 dive.ouruizhe.top 可配置为 302 跳转） |
-| Dev 组件标注版 | [start-t2i-explorer-dev](.agents/skills/start-t2i-explorer-dev/SKILL.md) | http://localhost:4180/?dataset=sft-e6.0-r30 |
+| Prob 正式版 | [start-covis-prob](.agents/skills/start-covis-prob/SKILL.md) | http://localhost:4173/ · https://covis.ouruizhe.top（T2I-Explorer 在 `/`，Scoring 在 `/scoring`；旧域名 dive.ouruizhe.top 已配置为 302 跳转） |
+| Dev 组件标注版 | [start-covis-dev](.agents/skills/start-covis-dev/SKILL.md) | http://localhost:4180/?dataset=sft-e6.0-r30 |
 
-使用 `$start-t2i-explorer-prob` 构建、启动正式版并检查已有 Cloudflare Tunnel；域名访问需要本机已有命名 tunnel 及凭据。使用 `$start-t2i-explorer-dev` 启动组件标注版，支持边框、中文名称、组件目录和标注开关。Dev 使用 Prob 当前的界面和数据，每次请求自动读取最新前端资源地址，文件保存在 `tools/component-map`。两个版本均由 systemd 用户服务后台运行；用户指定的端口、上游、域名或数据根目录优先。
+使用 `$start-covis-prob` 构建、启动正式版并检查已有 Cloudflare Tunnel；域名访问需要本机已有命名 tunnel 及凭据。使用 `$start-covis-dev` 启动组件标注版，支持边框、中文名称、组件目录和标注开关。Dev 使用 Prob 当前的界面和数据，每次请求自动读取最新前端资源地址，文件保存在 `tools/component-map`。两个版本均由 systemd 用户服务后台运行；用户指定的端口、上游、域名或数据根目录优先。
 
-本机直连 Cloudflare 的 7844 端口超时时，隧道可通过现有本机 HTTP 代理建立 HTTP/2 连接。当前部署使用 `t2i-explorer-relay.service` 运行 [TCP 中继](tools/tunnel-proxy-relay.py)，并由 tunnel 用户服务自动启动它；具体配置和验收方法见 [代理中继部署说明](tools/tunnel-proxy-relay.md)。已有 tunnel 配置中的 `protocol`、`edge` 和服务依赖需保留。`systemctl` 显示 running 仅表示进程运行，必须同时检查 tunnel 的 `/ready` 和公网接口。
+本机直连 Cloudflare 的 7844 端口超时时，隧道可通过现有本机 HTTP 代理建立 HTTP/2 连接。当前部署使用 `covis-relay.service` 运行 [TCP 中继](tools/tunnel-proxy-relay.py)，并由 tunnel 用户服务 `covis-tunnel.service` 自动启动它；具体配置和验收方法见 [代理中继部署说明](tools/tunnel-proxy-relay.md)。已有 tunnel 配置中的 `protocol`、`edge` 和服务依赖需保留。`systemctl` 显示 running 仅表示进程运行，必须同时检查 tunnel 的 `/ready` 和公网接口。
 
 每条样本的 Input / Pred / GT text 标题带箭头按钮，可分别展开、收起文本；列表和图片详情均支持，默认展开。结果数量与页码摘要行可一键展开／收起全部文本，翻页或新加实验会沿用该状态；“清空实验”移除所有已选对比列，返回当前数据集的实验选择页面。
 
@@ -107,4 +107,4 @@ collection is `sft-e6-r30`, with `sft-e6.1-r30` retained as a read-only alias.
 
 服务端除了追加 `labels/<reviewer>.jsonl` 外全部只读，没有删除或覆盖接口；`agent-*` 标签集拒绝写入。格式、Schema 和接口见 [spec.md](spec.md#scoring-模式)。fixture 由 `pnpm exec tsx tools/create-scoring-fixtures.ts` 生成，favicon 由 `pnpm exec tsx tools/create-favicon.ts` 生成。
 
-旧域名跳转：设置 `COVIS_REDIRECT_HOSTS=dive.ouruizhe.top` 和 `COVIS_CANONICAL_ORIGIN=https://covis.ouruizhe.top` 后，Host 为该域名的请求收到 302，跳到规范域名下的相同路径和查询；两个变量都未设置时不跳转。跳转先于 Host 白名单检查，因此旧域名无需加入 `T2I_ALLOWED_HOSTS`，规范域名需要加入。
+旧域名跳转：设置 `COVIS_REDIRECT_HOSTS=dive.ouruizhe.top` 和 `COVIS_CANONICAL_ORIGIN=https://covis.ouruizhe.top` 后，Host 为该域名的请求收到 302，跳到规范域名下的相同路径和查询；两个变量都未设置时不跳转。跳转先于 Host 白名单检查，因此旧域名无需加入 `T2I_ALLOWED_HOSTS`，规范域名需要加入。当前部署的 `covis.service` 已按此配置，`dive.ouruizhe.top` 保留在 tunnel ingress 中以便请求到达应用并被跳转。

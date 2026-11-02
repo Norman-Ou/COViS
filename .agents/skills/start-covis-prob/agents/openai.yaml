@@ -1,0 +1,4 @@
+interface:
+  display_name: "启动 COViS Prob（4173）"
+  short_description: "构建并启动 Prob 正式版（4173），维护域名、代理连接和后台服务"
+  default_prompt: "使用 $start-covis-prob 启动正式版，端口 4173，公网使用 covis.ouruizhe.top。"
