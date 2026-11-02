@@ -9,12 +9,14 @@ export type ScoringViewState = {
     pair?: string;
     status: LabelStatusFilter;
     agreement: AgreementFilter;
+    /** Real mode names candidates as GT / Prediction (auto-reveals each viewed item); absent = Anonymous. */
+    real?: boolean;
 };
 const id = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const labelSet = /^[A-Za-z0-9_-]{1,32}$/;
 const optional = <K extends string>(key: K, value: string | null, pattern: RegExp) => value && pattern.test(value) ? { [key]: value } as Record<K, string> : {};
 
-/** Scoring deep links: `/scoring?set=…&item=…&prefill=…&pres=…&pair=…&status=…&agree=…`. */
+/** Scoring deep links: `/scoring?set=…&item=…&prefill=…&pres=…&pair=…&status=…&agree=…&real=1`. */
 export function parseScoringState(search: string): ScoringViewState {
     const params = new URLSearchParams(search);
     const status = params.get("status");
@@ -26,7 +28,8 @@ export function parseScoringState(search: string): ScoringViewState {
         ...(params.get("prefill") === "" ? { prefill: "" } : optional("prefill", params.get("prefill"), labelSet)), ...optional("presentation", params.get("pres"), id),
         ...(pair && pair.length <= 256 ? { pair } : {}),
         status: status === "labelled" || status === "unlabelled" ? status : "all",
-        agreement: agreement === "agree" || agreement === "disagree" ? agreement : "all"
+        agreement: agreement === "agree" || agreement === "disagree" ? agreement : "all",
+        ...(params.get("real") === "1" ? { real: true } : {})
     };
 }
 export function serializeScoringState(state: ScoringViewState): string {
@@ -38,6 +41,7 @@ export function serializeScoringState(state: ScoringViewState): string {
     if (state.pair) params.set("pair", state.pair);
     if (state.status !== "all") params.set("status", state.status);
     if (state.agreement !== "all") params.set("agree", state.agreement);
+    if (state.real) params.set("real", "1");
     const encoded = params.toString();
     return encoded ? `?${encoded}` : "";
 }

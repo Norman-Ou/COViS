@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { ScoringApp } from '../src/client/ScoringApp.js';
+import { scoringApi } from '../src/client/scoringApi.js';
 import { filterItems, scoringRecord, validReviewerName } from '../src/client/scoringModel.js';
 import { parseScoringState, serializeScoringState } from '../src/client/scoringUrlState.js';
 import { TopBar } from '../src/client/TopBar.js';
@@ -23,12 +24,18 @@ it('round-trips scoring deep links and keeps an explicit empty prefill', () => {
     expect(parseScoringState('?set=pj-demo&prefill=').prefill).toBe('');
     expect(serializeScoringState({ setId: 's', prefill: '', status: 'all', agreement: 'all' })).toBe('?set=s&prefill=');
     expect(parseScoringState('?set=../x&prefill=bad.name&status=x')).toEqual({ status: 'all', agreement: 'all' });
+    const real = parseScoringState('?set=pj-e61-r30-v1-r02-masks&prefill=agent-r02-codex-high&real=1');
+    expect(real).toEqual({ setId: 'pj-e61-r30-v1-r02-masks', prefill: 'agent-r02-codex-high', status: 'all', agreement: 'all', real: true });
+    expect(serializeScoringState(real)).toBe('?set=pj-e61-r30-v1-r02-masks&prefill=agent-r02-codex-high&real=1');
+    expect(parseScoringState('?set=s&real=0').real).toBeUndefined();
+    expect(serializeScoringState({ setId: 's', status: 'all', agreement: 'all', real: false })).toBe('?set=s');
 });
 
 it('validates reviewer names, builds panels for both presentation kinds and filters items', () => {
     expect(validReviewerName('alice_1')).toBe(true);
     for (const name of ['', 'a'.repeat(33), 'agent-x', 'x y', 'a.b']) expect(validReviewerName(name)).toBe(false);
     expect(scoringRecord(items[0]!, 'overlay').panels.map(panel => panel.title)).toEqual(['Original', 'Candidate 1', 'Candidate 2']);
+    expect(scoringRecord(items[0]!, 'overlay', 'Overlay', { pred: 2, gt: 1 }).panels.map(panel => panel.title)).toEqual(['Original', 'Candidate 1 · GT', 'Candidate 2 · Prediction']);
     expect(scoringRecord(items[0]!, 'side', 'Side by side').panels.map(panel => panel.title)).toEqual(['Original', 'Side by side']);
     expect(scoringRecord(items[1]!, 'side', 'Side').panels.map(panel => [panel.id, panel.title])).toEqual([['original', 'Original'], ['view_1', 'Side 1'], ['view_2', 'Side 2']]);
     expect(scoringRecord(items[1]!, 'overlay').panels.every(panel => panel.status === 'missing')).toBe(true);
@@ -77,7 +84,7 @@ describe('ScoringApp', () => {
             return new Response('image');
         }));
     });
-    afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+    afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
     it('asks for a reviewer name once and stores it locally', async () => {
         render(<ScoringApp/>);
@@ -125,5 +132,53 @@ describe('ScoringApp', () => {
 
         fireEvent.keyDown(window, { key: 'n' });
         expect(await screen.findByRole('heading', { name: 'b' })).toBeInTheDocument();
+    });
+
+    it('switches between Anonymous and Real names, auto-revealing the viewed item once', async () => {
+        localStorage.setItem('covis.reviewer', 'alice');
+        const reveal = vi.spyOn(scoringApi, 'reveal');
+        render(<ScoringApp/>);
+        const form = await screen.findByRole('form', { name: 'Your label' });
+        const prefillBox = screen.getByRole('region', { name: 'Prefilled verdict' });
+        await within(prefillBox).findByText('Candidate 2 is tighter.');
+        const titles = () => screen.getAllByRole('figure').map(figure => figure.querySelector('figcaption')?.textContent);
+        const choices = () => within(form).getAllByRole('button').filter(button => button.textContent !== 'Save').map(button => button.textContent);
+        expect(screen.getByRole('button', { name: 'Anonymous' })).toHaveAttribute('aria-pressed', 'true');
+        expect(titles()).toEqual(['Original', 'Candidate 1', 'Candidate 2']);
+        expect(choices()).toEqual(['Candidate 1', 'Candidate 2', 'Tie']);
+
+        const confirm = vi.fn(() => false);
+        vi.stubGlobal('confirm', confirm);
+        fireEvent.click(screen.getByRole('button', { name: 'Real' }));
+        expect(confirm).toHaveBeenCalledTimes(1);
+        expect(screen.getByRole('button', { name: 'Anonymous' })).toHaveAttribute('aria-pressed', 'true');
+        expect(reveal).not.toHaveBeenCalled();
+
+        confirm.mockReturnValue(true);
+        fireEvent.click(screen.getByRole('button', { name: 'Real' }));
+        expect(await screen.findByRole('button', { name: 'Candidate 1 · GT' })).toBeInTheDocument();
+        expect(reveal).toHaveBeenCalledTimes(1);
+        expect(reveal).toHaveBeenCalledWith('pj-demo', 'a', 'alice');
+        expect(confirm).toHaveBeenCalledTimes(2);
+        expect(window.location.search).toContain('real=1');
+        expect(screen.getByRole('button', { name: 'Real' })).toHaveAttribute('aria-pressed', 'true');
+        expect(titles()).toEqual(['Original', 'Candidate 1 · GT', 'Candidate 2 · Prediction']);
+        expect(choices()).toEqual(['Candidate 1 · GT', 'Candidate 2 · Prediction', 'Tie']);
+        expect(within(prefillBox).getByText('Candidate 2 · Prediction')).toBeInTheDocument();
+        expect(JSON.parse(localStorage.getItem('covis.revealed.pj-demo.alice')!)).toEqual({ a: { pred: 2, gt: 1 } });
+        fireEvent.click(screen.getByRole('button', { name: 'Side by side' }));
+        expect(screen.getByText('The composite canvas labels its halves Candidate 1 and Candidate 2. Candidate 1 = GT, Candidate 2 = Prediction.')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Anonymous' }));
+        expect(confirm).toHaveBeenCalledTimes(2);
+        expect(window.location.search).not.toContain('real=');
+        expect(choices()).toEqual(['Candidate 1', 'Candidate 2', 'Tie']);
+        expect(screen.getByText('The composite canvas labels its halves Candidate 1 and Candidate 2.')).toBeInTheDocument();
+        expect(screen.getByText('Candidate 2 is the prediction; candidate 1 is the ground truth.')).toBeInTheDocument();
+        fireEvent.click(within(form).getByRole('button', { name: 'Candidate 1' }));
+        fireEvent.click(within(form).getByRole('button', { name: 'Save' }));
+        await waitFor(() => expect(posts.filter(post => post.url.includes('/labels/'))).toHaveLength(1));
+        expect(posts.at(-1)!.body).toMatchObject({ item_id: 'a', choice: 1, revealed: true });
+        expect(reveal).toHaveBeenCalledTimes(1);
     });
 });
