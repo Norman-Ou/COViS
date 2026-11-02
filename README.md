@@ -92,7 +92,7 @@ collection is `sft-e6-r30`, with `sft-e6.1-r30` retained as a read-only alias.
 
 - 评审名首次输入后保存在浏览器 localStorage（`[A-Za-z0-9_-]{1,32}`，不能以 `agent-` 开头）。
 - 侧栏：scoring set、prefill（`agent-*` 标签集）、pair / 已标注 / 与 prefill 一致或不一致的过滤、进度 `已标注/总数`、导出 JSONL。
-- item 视图：任务文本、presentation 切换（如 overlay / outline / 拼接画布）、点击图片打开复用的大图弹窗；只读显示所选 prefill 的选择、理由和可选 regions；评审尚无标签时以 prefill 预填可编辑的选择和理由。快捷键 `1` `2` `t` 选择，`n` `p` 切换，在理由框中 Ctrl/Cmd+Enter 保存。
+- item 视图：任务文本、可折叠的原始指令（`input_text`，默认收起）、presentation 切换（如 overlay / outline / 拼接画布）、点击图片打开复用的大图弹窗；只读显示所选 prefill 的选择、理由和可选 regions；评审尚无标签时以 prefill 预填可编辑的选择和理由。item 带 `candidate_texts` 时，图片面板下方按 Candidate 1、2 顺序显示每个候选的文本（GCG 的 caption，或类别任务声明的类别列表）：`[短语]` 去掉方括号并以该短语在该候选掩码中的颜色作底色（按亮度选黑/白字），其下为按声明顺序的短语图例；`unlisted` 的类别（不在任务图例中、图中画成灰色）以虚线框和图例后缀 `(not in legend)` 标出；大图弹窗的详情栏同样显示原始指令和候选文本。快捷键 `1` `2` `t` 选择，`n` `p` 切换，在理由框中 Ctrl/Cmd+Enter 保存。
 - 条目标题旁的 Anonymous / Real 切换：Anonymous（默认）只显示 Candidate 1 / 2；Real 在面板标题、选择按钮、prefill、当前条目徽标和拼接画布说明中标出哪个是 GT、哪个是 Prediction（如 `Candidate 1 · GT`），开启时确认一次，此后在 Real 模式下查看的每个 item 都会自动 Reveal 并记入该评审此后为其保存的标签（`revealed: true`）；切回 Anonymous 只隐藏角色，不撤销 Reveal。
 - 深链接：`/scoring?set=<set>&item=<item>&prefill=<agent-…>&pres=<presentation>&pair=…&status=labelled|unlabelled&agree=agree|disagree&real=1`；`prefill=`（空值）表示明确不使用 prefill；`real=1` 为 Real 模式，缺省为 Anonymous。
 
@@ -100,10 +100,19 @@ collection is `sft-e6-r30`, with `sft-e6.1-r30` retained as a read-only alias.
 
 ```text
 <set_id>/set.json                  # 集合说明、来源 cohort/round、blind_seed、评审说明、presentations
-<set_id>/items.jsonl               # 每行一个 item，含 blind_map（不发送给前端）
+<set_id>/items.jsonl               # 每行一个 item，含 blind_map（不发送给前端）；可选 input_text、candidate_texts
 <set_id>/assets/...                # 图片，只能通过 item/presentation/角色访问
 <set_id>/labels/<reviewer>.jsonl   # 只追加；每个 item 以最后一行为当前标签
 <set_id>/labels/agent-<round>-<judge>-<effort>.jsonl  # 只读的 agent 预填结果
+```
+
+item 的两个可选文本字段原样发给前端，可只出现在部分 item 上：
+
+- `input_text`：给两个候选的同一条原始指令（字符串，≤8000 字符）。
+- `candidate_texts`：键恰为 `"1"`、`"2"`，即**盲化后的**候选编号（导出端已按 `blind_map` 换好，前端不需要 `blind_map`）。每个值为 `{caption, phrases}`：`caption`（≤8000 字符）是 GCG 的 grounded caption，或类别任务（semantic / panoptic / instance）中该候选声明的类别列表纯文本（如 `[sports-court-0], [street]`），每个短语以 `[短语名]` 出现一次；`phrases`（≤64 个，按声明顺序）为 `{name（≤256 字符）, rgb: [0–255, 0–255, 0–255], unlisted?: boolean}`，`rgb` 是该候选图片中这个短语掩码的颜色，`unlisted: true` 表示该类别不在任务图例中（图中画成灰色）。只在 `phrases` 中的短语只出现在图例；caption 中没有对应短语的方括号文本按原样显示。界面只渲染文本节点，不执行 HTML。
+
+```json
+"candidate_texts":{"1":{"caption":"The image shows a [residential area] with [houses] along a [road].","phrases":[{"name":"residential area","rgb":[230,159,0]},{"name":"houses","rgb":[86,180,233]},{"name":"road","rgb":[0,158,115]}]},"2":{"caption":"[building], [road]","phrases":[{"name":"building","rgb":[230,159,0]},{"name":"road","rgb":[128,128,128],"unlisted":true}]}}
 ```
 
 服务端除了追加 `labels/<reviewer>.jsonl` 外全部只读，没有删除或覆盖接口；`agent-*` 标签集拒绝写入。格式、Schema 和接口见 [spec.md](spec.md#scoring-模式)。fixture 由 `pnpm exec tsx tools/create-scoring-fixtures.ts` 生成，favicon 由 `pnpm exec tsx tools/create-favicon.ts` 生成。

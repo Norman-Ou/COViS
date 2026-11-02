@@ -2,14 +2,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { ScoringApp } from '../src/client/ScoringApp.js';
 import { scoringApi } from '../src/client/scoringApi.js';
-import { filterItems, scoringRecord, validReviewerName } from '../src/client/scoringModel.js';
+import { captionSegments, filterItems, phraseColors, scoringRecord, validReviewerName } from '../src/client/scoringModel.js';
 import { parseScoringState, serializeScoringState } from '../src/client/scoringUrlState.js';
 import { TopBar } from '../src/client/TopBar.js';
 import type { ScoringItemView, ScoringLabelRow, ScoringSetResponse } from '../src/shared/scoring.js';
 
 const media = (role: string) => ({ url: `/m/${role}`, thumbnail_url: `/m/${role}?variant=thumbnail` });
 const items: ScoringItemView[] = [
-    { item_id: 'a', index: 1, pair: 'refseg/x', task: 'refseg', task_text: 'Segment the tank.', metadata: {}, presentations: {
+    { item_id: 'a', index: 1, pair: 'refseg/x', task: 'refseg', task_text: 'Segment the tank.', input_text: 'Please segment <b>the tank</b>.', metadata: {},
+        candidate_texts: {
+            1: { caption: 'A [storage tank] near [houses] and [river].', phrases: [{ name: 'storage tank', rgb: [230, 159, 0] }, { name: 'houses', rgb: [0, 0, 128] }, { name: 'road', rgb: [0, 158, 115] }] },
+            2: { caption: '[storage tank], [street]', phrases: [{ name: 'storage tank', rgb: [86, 180, 233] }, { name: 'street', rgb: [128, 128, 128], unlisted: true }] }
+        }, presentations: {
         overlay: { kind: 'candidates', original: media('o'), candidate_1: media('c1'), candidate_2: media('c2') },
         side: { kind: 'composite', original: media('o'), views: [media('v1')] } } },
     { item_id: 'b', index: 2, pair: 'semantic/y', task: 'semantic', task_text: 'Classes: water.', metadata: {}, presentations: {
@@ -47,6 +51,15 @@ it('validates reviewer names, builds panels for both presentation kinds and filt
     expect(ids({ status: 'unlabelled', agreement: 'all' })).toEqual(['b']);
     expect(ids({ status: 'all', agreement: 'disagree' })).toEqual(['a']);
     expect(ids({ status: 'all', agreement: 'agree' })).toEqual([]);
+});
+
+it('splits grounded captions into phrase chips and picks contrasting text', () => {
+    expect(captionSegments(items[0]!.candidate_texts!['1'])).toEqual([
+        { text: 'A ' }, { text: 'storage tank', phrase: { name: 'storage tank', rgb: [230, 159, 0] } }, { text: ' near ' },
+        { text: 'houses', phrase: { name: 'houses', rgb: [0, 0, 128] } }, { text: ' and [river].' }]);
+    expect(captionSegments({ caption: '', phrases: [] })).toEqual([]);
+    expect(phraseColors([230, 159, 0])).toEqual({ backgroundColor: 'rgb(230, 159, 0)', color: '#000' });
+    expect(phraseColors([0, 0, 128]).color).toBe('#fff');
 });
 
 it('shows COViS with both mode entries and highlights the active one', () => {
@@ -132,6 +145,51 @@ describe('ScoringApp', () => {
 
         fireEvent.keyDown(window, { key: 'n' });
         expect(await screen.findByRole('heading', { name: 'b' })).toBeInTheDocument();
+    });
+
+    it('shows the instruction and each candidate text with coloured chips, legends and Real names', async () => {
+        localStorage.setItem('covis.reviewer', 'alice');
+        const { container } = render(<ScoringApp/>);
+        const section = await screen.findByRole('region', { name: 'Candidate texts' });
+        expect(section.previousElementSibling).toHaveClass('media-panels');
+        expect(section.nextElementSibling).toHaveClass('scoring-columns');
+        const instruction = container.querySelector('.scoring-task + details.scoring-input-text') as HTMLDetailsElement;
+        expect(instruction.open).toBe(false);
+        expect(within(instruction).getByText('Instruction')).toBeInTheDocument();
+        expect(within(instruction).getByText('Please segment <b>the tank</b>.')).toBeInTheDocument();
+        expect(instruction.querySelector('b')).toBeNull();
+        const blocks = within(section).getAllByRole('group');
+        expect(blocks.map(block => within(block).getByRole('heading').textContent)).toEqual(['Candidate 1', 'Candidate 2']);
+        const chips = (block: HTMLElement) => [...block.querySelectorAll('mark.scoring-phrase')].map(chip => [chip.textContent, (chip as HTMLElement).style.backgroundColor, (chip as HTMLElement).style.color, chip.classList.contains('unlisted')]);
+        expect(chips(blocks[0]!)).toEqual([['storage tank', 'rgb(230, 159, 0)', 'rgb(0, 0, 0)', false], ['houses', 'rgb(0, 0, 128)', 'rgb(255, 255, 255)', false]]);
+        expect(blocks[0]!.querySelector('.scoring-caption')).toHaveTextContent('A storage tank near houses and [river].');
+        expect(within(blocks[0]!).getByRole('list', { name: 'Candidate 1 phrases' }).textContent).toBe('storage tankhousesroad');
+        expect(chips(blocks[1]!)).toEqual([['storage tank', 'rgb(86, 180, 233)', 'rgb(0, 0, 0)', false], ['street', 'rgb(128, 128, 128)', 'rgb(0, 0, 0)', true]]);
+        const legend = within(blocks[1]!).getAllByRole('listitem');
+        expect(legend.map(entry => [entry.textContent, entry.classList.contains('unlisted')])).toEqual([['storage tank', false], ['street (not in legend)', true]]);
+        expect((legend[1]!.querySelector('.scoring-swatch') as HTMLElement).style.backgroundColor).toBe('rgb(128, 128, 128)');
+
+        // jsdom has no modal dialogs.
+        Object.assign(HTMLDialogElement.prototype, { showModal(this: HTMLDialogElement) { this.setAttribute('open', ''); }, close(this: HTMLDialogElement) { this.removeAttribute('open'); } });
+        fireEvent.click(container.querySelector('.scoring-item .panel-button')!);
+        const dialog = await screen.findByRole('dialog');
+        const details = dialog.querySelector('.scoring-lightbox-details')!;
+        expect(details).toHaveTextContent('Please segment <b>the tank</b>.');
+        expect(details.querySelectorAll('.scoring-candidate-texts mark.scoring-phrase')).toHaveLength(4);
+        expect(details).toHaveTextContent('street (not in legend)');
+        fireEvent(dialog, new Event('cancel', { cancelable: true }));
+        await waitFor(() => expect(container.querySelector('dialog[open]')).toBeNull());
+
+        vi.stubGlobal('confirm', vi.fn(() => true));
+        fireEvent.click(screen.getByRole('button', { name: 'Real' }));
+        await screen.findByRole('button', { name: 'Candidate 1 · GT' });
+        expect(within(section).getAllByRole('heading').map(heading => heading.textContent)).toEqual(['Candidate 1 · GT', 'Candidate 2 · Prediction']);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Anonymous' }));
+        fireEvent.keyDown(window, { key: 'n' });
+        expect(await screen.findByRole('heading', { name: 'b' })).toBeInTheDocument();
+        expect(container.querySelector('.scoring-candidate-texts')).toBeNull();
+        expect(container.querySelector('.scoring-input-text')).toBeNull();
     });
 
     it('switches between Anonymous and Real names, auto-revealing the viewed item once', async () => {

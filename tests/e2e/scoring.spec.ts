@@ -70,3 +70,26 @@ test('switches to Real names after confirming and keeps the mode across reload',
     await expect(page.locator('.scoring-item figcaption')).toHaveText(['Original', 'Candidate 1', 'Candidate 2']);
     await expect(page.getByRole('button', { name: 'Revealed' })).toBeVisible();
 });
+
+test('shows the instruction and each candidate text with coloured phrase chips', async ({ page }) => {
+    await openPage(page, '/scoring?set=pj-demo&prefill=agent-demo&item=demo-refseg-01');
+    await page.getByRole('textbox', { name: 'Reviewer name' }).fill(`e2e-texts-${test.info().project.name}`);
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await expect(page.getByRole('heading', { name: 'demo-refseg-01' })).toBeVisible();
+    const instruction = page.locator('.scoring-input-text');
+    await expect(instruction).not.toHaveAttribute('open');
+    await instruction.getByText('Instruction').click();
+    await expect(instruction).toContainText('Please segment the large storage tank');
+    const blocks = page.locator('.scoring-candidate-texts .scoring-candidate-text');
+    await expect(blocks.locator('h3')).toHaveText(['Candidate 1', 'Candidate 2']);
+    await expect(blocks.first().locator('.scoring-caption')).toHaveText('A large storage tank sits in the upper left beside bare ground.');
+    await expect(blocks.first().locator('mark.scoring-phrase').first()).toHaveCSS('background-color', 'rgb(255, 200, 0)');
+    await expect(blocks.first().locator('.scoring-phrase-legend li')).toHaveText(['large storage tank', 'bare ground']);
+
+    await page.locator('.scoring-items button', { hasText: 'demo-semantic-01' }).click();
+    await expect(page.locator('.scoring-candidate-texts .scoring-phrase-legend li.unlisted')).toHaveText(['road (not in legend)']);
+    await page.locator('.scoring-items button', { hasText: 'demo-refseg-02' }).click();
+    await expect(page.getByRole('heading', { name: 'demo-refseg-02' })).toBeVisible();
+    await expect(page.locator('.scoring-candidate-texts')).toHaveCount(0);
+    await expect(page.locator('.scoring-input-text')).toHaveCount(0);
+});
