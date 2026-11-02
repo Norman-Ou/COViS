@@ -1,4 +1,0 @@
-interface:
-  display_name: "启动 T2I Explorer Prob（4173）"
-  short_description: "构建并启动 Prob 正式版（4173），维护域名、代理连接和后台服务"
-  default_prompt: "使用 $start-t2i-explorer-prob 启动正式版，端口 4173，公网使用 dive.ouruizhe.top。"
