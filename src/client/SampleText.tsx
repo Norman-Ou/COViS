@@ -41,9 +41,10 @@ function TextField({ label, value, defaultExpanded }: { label: string; value: st
         <p id={id} className="exact-text" hidden={!expanded}><ColoredText value={value}/></p>
     </section>;
 }
-export function SampleText({ record, textDisplay = defaultTextDisplay }: {
+export function SampleText({ record, textDisplay = defaultTextDisplay, showExtraTexts = false }: {
     record: SampleView;
     textDisplay?: TextDisplay;
+    showExtraTexts?: boolean;
 }) {
     const fields: Array<[
         string,
@@ -52,7 +53,7 @@ export function SampleText({ record, textDisplay = defaultTextDisplay }: {
         ["Input text", record.input_text],
         ["Pred text", record.pred_text],
         ["GT text", record.gt_text],
-        ...(record.extra_texts ?? []).map(item => [item.title, item.text] as [
+        ...(showExtraTexts ? record.extra_texts ?? [] : []).map(item => [item.title, item.text] as [
             string,
             string | null
         ])

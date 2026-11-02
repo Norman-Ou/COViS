@@ -77,7 +77,7 @@ catalog/records 使用元数据快照 ETag；自动刷新在后台检查元数�
 
 实验 GET 请求最多 4 列并发、单次超时 20 秒，使用相同有限重试策略；失败列可独立 Retry，不重载正常列。Reload POST 不自动重试。
 
-Input/Pred/GT 均显示。合法 `<p>airplane-3<color>(254, 91, 109)</color></p>` 整个 token 按指定颜色显示，保留标签和空白、提供对比背景，禁止执行 HTML。GT、额外文本参与搜索。原始 metadata 可展开、复制查看。
+对比列表只显示 Input/Pred/GT 文本；`extra_texts` 附加说明（包括 Data and evaluation、Sample lineage、Panel semantics）仅在点击图片后打开的详情右侧栏显示。合法 `<p>airplane-3<color>(254, 91, 109)</color></p>` 整个 token 按指定颜色显示，保留标签和空白、提供对比背景，禁止执行 HTML。GT、额外文本参与搜索。原始 metadata 可展开、复制查看。
 
 ## URL
 

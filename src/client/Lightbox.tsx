@@ -55,7 +55,7 @@ export function Lightbox({ selection, onClose, generation = 0, textDisplay, deta
       {expandedPanel ? <div className="focused-image-layer"><div ref={focusedPanel} className="focused-panel" role="region" aria-label={`${expandedPanel.title} enlarged image`} tabIndex={-1}><MediaPanel key={`${generation}:${expandedPanel.id}:${expandedPanel.url}`} panel={expandedPanel} record={record} expanded/></div></div> : null}
     </div>
       <aside className="details-panel" aria-label="Record details"><div className="record-identity"><strong>{taskTitle}</strong><span>{sourceTitle}</span><span>{expTitle}</span><span>{identity.sourceId !== undefined ? 'Source ID' : 'Sample ID'} {identity.displayId}</span>{identity.sourceSplit ? <span>Split: {identity.sourceSplit}</span> : null}</div>
-        {details ?? <><SampleText record={record} textDisplay={textDisplay}/>
+        {details ?? <><SampleText record={record} textDisplay={textDisplay} showExtraTexts/>
         <p>Panels: {record.panels.map(panel => panel.title).join(" | ")}</p><JsonInspector record={record}/></>}</aside></div>
   </dialog>;
 }
