@@ -63,6 +63,7 @@
     ['72', '当前条目', '.scoring-item', 'scoring', true],
     ['73', '条目标题与上一条／下一条', '.scoring-item-header', 'scoring'],
     ['74', '上一条／下一条按钮', '.scoring-nav', 'scoring', false, true],
+    ['86', '匿名／真实 切换', '.scoring-anonymity', 'scoring'],
     ['75', '评分说明（可展开）', '.scoring-instructions', 'scoring', false, true],
     ['76', '任务文本', '.scoring-task', 'scoring'],
     ['77', '呈现方式切换', '.scoring-presentations', 'scoring'],

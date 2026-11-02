@@ -4,11 +4,11 @@ import { isAgentLabelSet, type ScoringChoice, type ScoringLabelRow, type Scoring
 import { Lightbox } from "./Lightbox.js";
 import { MediaPanels } from "./MediaPanels.js";
 import { scoringApi } from "./scoringApi.js";
-import { filterItems, readRevealed, readReviewer, revealedKey, REVIEWER_KEY, scoringRecord, validReviewerName } from "./scoringModel.js";
+import { candidateTitle, filterItems, readRevealed, readReviewer, revealedKey, REVIEWER_KEY, scoringRecord, validReviewerName } from "./scoringModel.js";
 import { parseScoringState, serializeScoringState, type ScoringViewState } from "./scoringUrlState.js";
 import { TopBar } from "./TopBar.js";
 
-const choiceLabel = (choice: ScoringChoice) => choice === "tie" ? "Tie" : `Candidate ${choice}`;
+const choiceLabel = (choice: ScoringChoice, roles?: ScoringRevealResponse["blind_map"]) => choice === "tie" ? "Tie" : candidateTitle(choice, roles);
 const message = (error: unknown) => error instanceof Error ? error.message : String(error);
 
 function Regions({ row }: { row: ScoringLabelRow }) {
@@ -44,6 +44,7 @@ export function ScoringApp() {
     const [lightboxOpen, setLightboxOpen] = useState(false);
     const focusReturn = useRef<HTMLElement | undefined>(undefined);
     const reasonRef = useRef<HTMLTextAreaElement>(null);
+    const autoReveals = useRef(new Set<string>());
 
     const updateView = useCallback((updater: (current: ScoringViewState) => ScoringViewState, replace = false) => {
         setView(current => { const next = updater(current); window.history[replace ? "replaceState" : "pushState"]({}, "", `${window.location.pathname}${serializeScoringState(next)}`); return next; });
@@ -108,6 +109,8 @@ export function ScoringApp() {
     const itemRevealed = item ? revealed[item.item_id] : undefined;
     const wasRevealed = Boolean(itemRevealed || label?.revealed);
     const position = item ? filtered.findIndex(entry => entry.item_id === item.item_id) : -1;
+    // Real mode names candidates only from this item's reveal; Anonymous hides roles but never un-reveals.
+    const roles = view.real ? itemRevealed : undefined;
 
     const go = (delta: number) => {
         const next = filtered[Math.min(filtered.length - 1, Math.max(0, position < 0 ? 0 : position + delta))];
@@ -124,15 +127,30 @@ export function ScoringApp() {
             setSaveState({ status: "saved", message: `Saved ${new Date(row.updated_at).toLocaleTimeString()}` });
         } catch (e) { setSaveState({ status: "error", message: message(e) }); }
     };
+    const fetchReveal = useCallback(async (setId: string, reviewerName: string, itemId: string) => {
+        const result = await scoringApi.reveal(setId, itemId, reviewerName);
+        const next = { ...readRevealed(setId, reviewerName), [itemId]: result.blind_map };
+        localStorage.setItem(revealedKey(setId, reviewerName), JSON.stringify(next));
+        setRevealed({ key: `${setId}/${reviewerName}`, map: next });
+    }, []);
     const reveal = async () => {
         if (!item || !view.setId || !reviewer) return;
         if (!wasRevealed && !window.confirm("Reveal which candidate is the prediction? This is recorded on your next saved label for this item (revealed: true).")) return;
-        try {
-            const result = await scoringApi.reveal(view.setId, item.item_id, reviewer);
-            const next = { ...readRevealed(view.setId, reviewer), [item.item_id]: result.blind_map };
-            localStorage.setItem(revealedKey(view.setId, reviewer), JSON.stringify(next));
-            setRevealed({ key: `${view.setId}/${reviewer}`, map: next });
-        } catch (e) { setError(message(e)); }
+        try { await fetchReveal(view.setId, reviewer, item.item_id); } catch (e) { setError(message(e)); }
+    };
+    // Real mode reveals each item it shows (once per item; the toggle confirmed this when switched on).
+    const autoRevealItem = view.real && setData && item && !itemRevealed ? item.item_id : undefined;
+    useEffect(() => {
+        if (!autoRevealItem || !view.setId || !reviewer) return;
+        const key = `${view.setId}/${reviewer}/${autoRevealItem}`;
+        if (autoReveals.current.has(key)) return;
+        autoReveals.current.add(key);
+        fetchReveal(view.setId, reviewer, autoRevealItem).catch(e => { autoReveals.current.delete(key); setError(message(e)); });
+    }, [autoRevealItem, view.setId, reviewer, fetchReveal]);
+    const setReal = (real: boolean) => {
+        if (real === Boolean(view.real)) return;
+        if (real && !window.confirm("Show which candidate is GT and which is the prediction? Every item you view in Real mode is revealed, and your later saved labels for those items are recorded as revealed (revealed: true).")) return;
+        updateView(state => ({ ...state, real: real || undefined }), true);
     };
 
     // Shortcuts 1 / 2 / t choose, n / p move; ignored while typing or in the lightbox.
@@ -153,7 +171,7 @@ export function ScoringApp() {
 
     const chooseReviewer = (name: string) => { localStorage.setItem(REVIEWER_KEY, name); setReviewer(name); setEditingReviewer(false); };
     const presentationTitle = setData?.set.presentations.find(p => p.id === presentation)?.title ?? "";
-    const record = item && presentation ? scoringRecord(item, presentation, presentationTitle) : undefined;
+    const record = item && presentation ? scoringRecord(item, presentation, presentationTitle, roles) : undefined;
     const composite = Boolean(item && presentation && item.presentations[presentation]?.kind === "composite");
     const labelledCount = items.filter(entry => current.has(entry.item_id)).length;
     const blindText = (map: ScoringRevealResponse["blind_map"]) => `Candidate ${map.pred} is the prediction; candidate ${map.gt} is the ground truth.`;
@@ -189,7 +207,7 @@ export function ScoringApp() {
             <ol className="scoring-items">{filtered.map(entry => { const row = current.get(entry.item_id); const agentRow = prefillRows.get(entry.item_id); return <li key={entry.item_id}>
                 <button type="button" aria-current={entry.item_id === item?.item_id ? "true" : undefined} onClick={() => { setSaveState({ status: "idle" }); updateView(state => ({ ...state, itemId: entry.item_id })); }}>
                     <span className="scoring-item-id">{entry.item_id}</span><small>{entry.pair}</small>
-                    <span className={`scoring-badge${row ? " labelled" : ""}`}>{row ? choiceLabel(row.choice) : "—"}{row && agentRow ? (row.choice === agentRow.choice ? " ✓" : " ≠") : ""}</span>
+                    <span className={`scoring-badge${row ? " labelled" : ""}`}>{row ? choiceLabel(row.choice, entry.item_id === item?.item_id ? roles : undefined) : "—"}{row && agentRow ? (row.choice === agentRow.choice ? " ✓" : " ≠") : ""}</span>
                 </button></li>; })}</ol>
             {setData && !filtered.length ? <p className="muted">No items match these filters.</p> : null}
         </aside>
@@ -200,21 +218,25 @@ export function ScoringApp() {
             {setData && item && record ? <article className="scoring-item" aria-label={`Item ${item.item_id}`}>
                 <div className="scoring-item-header">
                     <div><h2>{item.item_id}</h2><span>{item.pair} · {item.task} · item {item.index} of {items.length}</span></div>
+                    <div className="view-mode-control scoring-anonymity" role="group" aria-label="Candidate names">
+                        <button type="button" aria-pressed={!view.real} onClick={() => setReal(false)} title="Label candidates Candidate 1 / Candidate 2">Anonymous</button>
+                        <button type="button" aria-pressed={Boolean(view.real)} onClick={() => setReal(true)} title="Show which candidate is GT and which is the prediction (reveals each viewed item)">Real</button>
+                    </div>
                     <div className="scoring-nav"><button type="button" onClick={() => go(-1)} disabled={position <= 0} aria-label="Previous item" title="Previous item (p)"><ChevronLeft size={16} aria-hidden="true"/></button><button type="button" onClick={() => go(1)} disabled={position < 0 || position >= filtered.length - 1} aria-label="Next item" title="Next item (n)"><ChevronRight size={16} aria-hidden="true"/></button></div>
                 </div>
                 {setData.set.instructions ? <details className="scoring-instructions"><summary>Instructions</summary><p>{setData.set.instructions}</p></details> : null}
                 <section className="scoring-task"><h3>Task</h3><p className="exact-text">{item.task_text}</p></section>
                 {presentations.length > 1 ? <div className="view-mode-control scoring-presentations" role="group" aria-label="Presentation">{presentations.map(p => <button key={p.id} type="button" aria-pressed={p.id === presentation} onClick={() => updateView(state => ({ ...state, presentation: p.id }), true)}>{p.title}</button>)}</div> : null}
-                {composite ? <p className="muted scoring-composite-note">The composite canvas labels its halves Candidate 1 and Candidate 2.</p> : null}
+                {composite ? <p className="muted scoring-composite-note">The composite canvas labels its halves Candidate 1 and Candidate 2.{roles ? ` Candidate 1 = ${roles.gt === 1 ? "GT" : "Prediction"}, Candidate 2 = ${roles.gt === 2 ? "GT" : "Prediction"}.` : ""}</p> : null}
                 <MediaPanels record={record} onOpen={button => { focusReturn.current = button; setLightboxOpen(true); }}/>
                 <div className="scoring-columns">
                     <section className="scoring-prefill" aria-label="Prefilled verdict"><h3>Prefill{prefillName ? ` · ${prefillName}` : ""}</h3>
-                        {!prefillName ? <p className="muted">No prefill selected.</p> : agent ? <><p><strong>{choiceLabel(agent.choice)}</strong>{agent.confidence !== undefined ? <span className="muted"> · confidence {agent.confidence.toFixed(2)}</span> : null}</p><p className="exact-text">{agent.reason || <span className="muted">(no reason)</span>}</p><Regions row={agent}/></> : <p className="muted">{prefill ? "No prefilled verdict for this item." : "Loading…"}</p>}
+                        {!prefillName ? <p className="muted">No prefill selected.</p> : agent ? <><p><strong>{choiceLabel(agent.choice, roles)}</strong>{agent.confidence !== undefined ? <span className="muted"> · confidence {agent.confidence.toFixed(2)}</span> : null}</p><p className="exact-text">{agent.reason || <span className="muted">(no reason)</span>}</p><Regions row={agent}/></> : <p className="muted">{prefill ? "No prefilled verdict for this item." : "Loading…"}</p>}
                     </section>
                     <form className="scoring-form" aria-label="Your label" onSubmit={event => { event.preventDefault(); void save(); }}>
                         <h3>Your label</h3>
                         <fieldset><legend>Which candidate better annotates the target?</legend><div className="view-mode-control scoring-choice">
-                            {([1, 2, "tie"] as const).map(choice => <button key={String(choice)} type="button" aria-pressed={draft.choice === choice} onClick={() => setChoice(choice)} title={`Shortcut ${choice === "tie" ? "t" : choice}`}>{choiceLabel(choice)}</button>)}
+                            {([1, 2, "tie"] as const).map(choice => <button key={String(choice)} type="button" aria-pressed={draft.choice === choice} onClick={() => setChoice(choice)} title={`Shortcut ${choice === "tie" ? "t" : choice}`}>{choiceLabel(choice, roles)}</button>)}
                         </div></fieldset>
                         <label>Reason<textarea ref={reasonRef} rows={4} maxLength={4000} value={draft.reason} onChange={event => setEdits({ key: draftKey, choice: draft.choice, reason: event.target.value })} onKeyDown={event => { if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) { event.preventDefault(); void save(); } }}/></label>
                         <div className="scoring-save"><button type="submit" className="primary" disabled={draft.choice === undefined || saveState.status === "saving"}>Save</button>
@@ -227,7 +249,7 @@ export function ScoringApp() {
         </main>
         <Lightbox selection={lightboxOpen && record && item ? { taskTitle: item.pair, sourceTitle: item.task, expTitle: presentationTitle, record } : undefined}
             onClose={() => { setLightboxOpen(false); window.setTimeout(() => focusReturn.current?.focus(), 0); }}
-            details={item ? <div className="scoring-lightbox-details"><h3>Task</h3><p className="exact-text">{item.task_text}</p>{agent ? <><h3>Prefill · {prefillName}</h3><p><strong>{choiceLabel(agent.choice)}</strong></p><p className="exact-text">{agent.reason}</p><Regions row={agent}/></> : null}{draft.choice !== undefined ? <><h3>Your choice</h3><p>{choiceLabel(draft.choice)}</p></> : null}</div> : null}/>
+            details={item ? <div className="scoring-lightbox-details"><h3>Task</h3><p className="exact-text">{item.task_text}</p>{agent ? <><h3>Prefill · {prefillName}</h3><p><strong>{choiceLabel(agent.choice, roles)}</strong></p><p className="exact-text">{agent.reason}</p><Regions row={agent}/></> : null}{draft.choice !== undefined ? <><h3>Your choice</h3><p>{choiceLabel(draft.choice, roles)}</p></> : null}</div> : null}/>
     </div>);
 }
 

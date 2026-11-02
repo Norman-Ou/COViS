@@ -111,6 +111,6 @@ collection 导航保持 `?dataset=sft-e6.0-r30`。列为 `cols=task:dataset:exp:
 | POST | `/api/scoring/sets/:set/items/:item/reveal` | 请求体 `{reviewer}`，返回 `{item_id, blind_map}`；唯一返回 `blind_map` 的接口 |
 | GET | `/api/scoring/media/:set/:item/:presentation/:role` | role 为 `original`、`candidate_1`、`candidate_2` 或 `view_<n>`；`?variant=thumbnail` 同实验图片 |
 
-写入：每行以单次 `write(2)` 追加到 `O_APPEND|O_NOFOLLOW` 打开的文件并 `fdatasync`，同一文件在进程内串行；不同评审写不同文件，互不覆盖。没有删除、覆盖或 PUT/PATCH 接口。Reveal 后，该评审此后为该 item 写入的所有行都标记 `revealed: true`（服务端强制，且一旦文件中出现即保持）；前端同时在 localStorage 记住已显示的 `blind_map`。
+写入：每行以单次 `write(2)` 追加到 `O_APPEND|O_NOFOLLOW` 打开的文件并 `fdatasync`，同一文件在进程内串行；不同评审写不同文件，互不覆盖。没有删除、覆盖或 PUT/PATCH 接口。Reveal 后，该评审此后为该 item 写入的所有行都标记 `revealed: true`（服务端强制，且一旦文件中出现即保持）；前端同时在 localStorage 记住已显示的 `blind_map`。item 视图的 Anonymous / Real 切换（URL `real=1`，缺省 Anonymous）只用该接口取得映射：开启 Real 时确认一次，之后每个显示的未 Reveal item 自动调用该接口并按上述方式记录，候选名称显示为 `Candidate n · GT` / `Candidate n · Prediction`（拼接画布在说明中写出映射）；切回 Anonymous 不撤销 Reveal。
 
 旧域名跳转：`COVIS_REDIRECT_HOSTS`（逗号分隔）中的 Host 收到 302 到 `COVIS_CANONICAL_ORIGIN` + 原路径和查询，先于 Host 白名单；只设其一时启动失败，均未设置时关闭。

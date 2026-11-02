@@ -48,3 +48,25 @@ test('navigates between modes, scores an item blind and exports the label', asyn
     await page.getByRole('link', { name: 'T2I-Explorer' }).click();
     await expect(page.locator('.dataset-card')).toHaveCount(2);
 });
+
+test('switches to Real names after confirming and keeps the mode across reload', async ({ page }) => {
+    await openPage(page, '/scoring?set=pj-demo&prefill=agent-demo');
+    await page.getByRole('textbox', { name: 'Reviewer name' }).fill(`e2e-real-${test.info().project.name}`);
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await expect(page.getByRole('heading', { name: 'demo-refseg-01' })).toBeVisible();
+    await expect(page.locator('.scoring-item figcaption')).toHaveText(['Original', 'Candidate 1', 'Candidate 2']);
+
+    page.on('dialog', dialog => dialog.accept());
+    await page.getByRole('button', { name: 'Real', exact: true }).click();
+    await expect(page.locator('.scoring-item figcaption').filter({ hasText: 'GT' })).toHaveText(['Candidate 2 · GT']);
+    await expect(page.getByRole('button', { name: 'Candidate 1 · Prediction', exact: true })).toBeVisible();
+    await expect(page.getByText('Candidate 1 is the prediction; candidate 2 is the ground truth.')).toBeVisible();
+    await expect(page).toHaveURL(/real=1/);
+
+    await reloadPage(page);
+    await expect(page.getByRole('button', { name: 'Real', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('.scoring-item figcaption')).toHaveText(['Original', 'Candidate 1 · Prediction', 'Candidate 2 · GT']);
+    await page.getByRole('button', { name: 'Anonymous' }).click();
+    await expect(page.locator('.scoring-item figcaption')).toHaveText(['Original', 'Candidate 1', 'Candidate 2']);
+    await expect(page.getByRole('button', { name: 'Revealed' })).toBeVisible();
+});

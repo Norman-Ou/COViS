@@ -93,7 +93,8 @@ collection is `sft-e6-r30`, with `sft-e6.1-r30` retained as a read-only alias.
 - 评审名首次输入后保存在浏览器 localStorage（`[A-Za-z0-9_-]{1,32}`，不能以 `agent-` 开头）。
 - 侧栏：scoring set、prefill（`agent-*` 标签集）、pair / 已标注 / 与 prefill 一致或不一致的过滤、进度 `已标注/总数`、导出 JSONL。
 - item 视图：任务文本、presentation 切换（如 overlay / outline / 拼接画布）、点击图片打开复用的大图弹窗；只读显示所选 prefill 的选择、理由和可选 regions；评审尚无标签时以 prefill 预填可编辑的选择和理由。快捷键 `1` `2` `t` 选择，`n` `p` 切换，在理由框中 Ctrl/Cmd+Enter 保存。
-- 深链接：`/scoring?set=<set>&item=<item>&prefill=<agent-…>&pres=<presentation>&pair=…&status=labelled|unlabelled&agree=agree|disagree`；`prefill=`（空值）表示明确不使用 prefill。
+- 条目标题旁的 Anonymous / Real 切换：Anonymous（默认）只显示 Candidate 1 / 2；Real 在面板标题、选择按钮、prefill、当前条目徽标和拼接画布说明中标出哪个是 GT、哪个是 Prediction（如 `Candidate 1 · GT`），开启时确认一次，此后在 Real 模式下查看的每个 item 都会自动 Reveal 并记入该评审此后为其保存的标签（`revealed: true`）；切回 Anonymous 只隐藏角色，不撤销 Reveal。
+- 深链接：`/scoring?set=<set>&item=<item>&prefill=<agent-…>&pres=<presentation>&pair=…&status=labelled|unlabelled&agree=agree|disagree&real=1`；`prefill=`（空值）表示明确不使用 prefill；`real=1` 为 Real 模式，缺省为 Anonymous。
 
 数据目录默认 `data/scoring`，可用 `T2I_SCORING_ROOT` 设置；演示数据：`T2I_SCORING_ROOT=fixtures/scoring pnpm start`（会向 fixture 写入标签，演示时请先复制）。目录结构：
 
