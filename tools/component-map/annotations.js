@@ -1,10 +1,11 @@
 /* global document, window, innerWidth, innerHeight, getComputedStyle, setTimeout, requestAnimationFrame, MutationObserver, Element */
 (() => {
-  const groups = { global: '#8050bd', sidebar: '#137b70', main: '#326dcc', comparison: '#b5630d', dialog: '#b6366c' };
+  const groups = { global: '#8050bd', sidebar: '#137b70', main: '#326dcc', comparison: '#b5630d', dialog: '#b6366c', scoring: '#2f7d32' };
   const regions = [
     ['01', '顶部应用名称栏', '.topbar', 'global', true],
     ['02', '侧栏收起／展开按钮', '.sidebar-toggle', 'global'],
     ['03', '应用名称', '.topbar > h1', 'global'],
+    ['04', '模式导航（T2I-Explorer／Scoring）', '.mode-nav', 'global'],
     ['05', '重新加载数据按钮', '.reload-data', 'sidebar', false, true],
     ['07', '侧边控制栏', '.sidebar:not(.collapsed)', 'sidebar', true],
     ['08', '数据集选择器', '.dataset-selector', 'sidebar'],
@@ -46,6 +47,33 @@
     ['50', 'Prompt 展开／收起按钮', '.text-toggle', 'comparison', false, true],
     ['51', '展开／收起全部文本按钮', '.comparison-actions button:first-child', 'comparison', false, true],
     ['52', '清空实验按钮', '.comparison-actions button:last-child', 'comparison', false, true],
+    // Scoring mode (/scoring): blind pairwise review.
+    ['60', '评分者名字输入框', '.reviewer-prompt', 'scoring', true],
+    ['61', '评分集首页（集合卡片）', '.scoring-main .dataset-landing', 'scoring', true],
+    ['62', '评分侧栏', '.scoring-sidebar', 'scoring', true],
+    ['63', '评分集选择器', '.scoring-sidebar > label:nth-of-type(1)', 'scoring'],
+    ['64', '评分者与切换按钮', '.scoring-reviewer', 'scoring'],
+    ['65', 'Prefill（agent 预填）选择器', '.scoring-sidebar > label:nth-of-type(2)', 'scoring'],
+    ['66', '筛选器（任务对／状态／与预填一致性）', '.scoring-sidebar > label:nth-of-type(3), .scoring-sidebar > label:nth-of-type(4), .scoring-sidebar > label:nth-of-type(5)', 'scoring', false, true],
+    ['67', '进度计数', '.scoring-progress', 'scoring'],
+    ['68', '导出我的标签按钮', '.scoring-sidebar .button-link', 'scoring', false, true],
+    ['69', '条目列表', '.scoring-items', 'scoring', true],
+    ['70', '条目按钮（ID／任务对／已选标记）', '.scoring-items button', 'scoring', false, true],
+    ['71', '评分主区', '.scoring-main', 'scoring', true],
+    ['72', '当前条目', '.scoring-item', 'scoring', true],
+    ['73', '条目标题与上一条／下一条', '.scoring-item-header', 'scoring'],
+    ['74', '上一条／下一条按钮', '.scoring-nav', 'scoring', false, true],
+    ['75', '评分说明（可展开）', '.scoring-instructions', 'scoring', false, true],
+    ['76', '任务文本', '.scoring-task', 'scoring'],
+    ['77', '呈现方式切换', '.scoring-presentations', 'scoring'],
+    ['78', '原图与两个候选（图片面板）', '.scoring-item .media-panels', 'scoring', true],
+    ['79', '预填结论（agent 选择与理由）', '.scoring-prefill', 'scoring'],
+    ['80', '我的标签表单', '.scoring-form', 'scoring', true],
+    ['81', '候选 1／候选 2／平局 选择', '.scoring-choice', 'scoring'],
+    ['82', '理由输入框', '.scoring-form textarea', 'scoring', false, true],
+    ['83', '保存按钮与保存状态', '.scoring-save', 'scoring'],
+    ['84', 'Reveal（揭示哪个是预测）', '.scoring-reveal', 'scoring'],
+    ['85', '弹窗内任务／预填详情', '.scoring-lightbox-details', 'dialog'],
   ];
   const toolbar = document.getElementById('component-toolbar');
   const overlay = document.getElementById('component-overlay');

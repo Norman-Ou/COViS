@@ -5,7 +5,7 @@ description: Start, restart, or restore the COViS Dev component annotation viewe
 
 # 启动 COViS Dev 版（4180）
 
-启动原来的组件标注页面，在正式版界面上显示彩色组件边框、中文名称、组件目录及标注开关。默认地址 **http://localhost:4180/?dataset=sft-e6.0-r30**，用户指定的端口、上游地址优先。
+启动原来的组件标注页面，在正式版界面上显示彩色组件边框、中文名称、组件目录及标注开关。默认地址 **http://localhost:4180/?dataset=sft-e6.0-r30**，Scoring 模式为 **http://localhost:4180/scoring**（两个入口路径都会注入标注；Scoring 组件编号 60–85，绿色），用户指定的端口、上游地址优先。
 
 ## 本机约定
 

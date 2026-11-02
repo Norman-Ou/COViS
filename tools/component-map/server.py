@@ -54,7 +54,8 @@ class Handler(BaseHTTPRequestHandler):
             file = ROOT / name[1:]
             self.send_bytes(file.read_bytes(), mimetypes.guess_type(file.name)[0])
         else:
-            self.proxy(annotated=name in {"/", "/index.html"})
+            # Both SPA entry routes serve the same index.html; annotate each.
+            self.proxy(annotated=name in {"/", "/index.html", "/scoring", "/scoring/"})
 
     def do_POST(self):
         origin = self.headers.get("Origin")
