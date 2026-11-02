@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "covis/scoring-item",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "item_id",
+    "pair",
+    "task",
+    "task_text",
+    "presentations",
+    "blind_map"
+  ],
+  "properties": {
+    "item_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+    },
+    "pair": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "task": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "task_text": {
+      "type": "string",
+      "maxLength": 8000
+    },
+    "presentations": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 16,
+      "propertyNames": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "original",
+          "candidate_1",
+          "candidate_2"
+        ],
+        "properties": {
+          "original": {
+            "type": "string",
+            "pattern": "^assets/[A-Za-z0-9._/-]+$",
+            "maxLength": 512
+          },
+          "candidate_1": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^assets/[A-Za-z0-9._/-]+$",
+            "maxLength": 512
+          },
+          "candidate_2": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^assets/[A-Za-z0-9._/-]+$",
+            "maxLength": 512
+          },
+          "views": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 16,
+            "items": {
+              "type": "string",
+              "pattern": "^assets/[A-Za-z0-9._/-]+$",
+              "maxLength": 512
+            }
+          }
+        },
+        "oneOf": [
+          {
+            "properties": {
+              "candidate_1": {
+                "type": "string",
+                "pattern": "^assets/[A-Za-z0-9._/-]+$",
+                "maxLength": 512
+              },
+              "candidate_2": {
+                "type": "string",
+                "pattern": "^assets/[A-Za-z0-9._/-]+$",
+                "maxLength": 512
+              }
+            },
+            "not": {
+              "required": [
+                "views"
+              ]
+            }
+          },
+          {
+            "properties": {
+              "candidate_1": {
+                "type": "null"
+              },
+              "candidate_2": {
+                "type": "null"
+              }
+            },
+            "required": [
+              "views"
+            ]
+          }
+        ]
+      }
+    },
+    "blind_map": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pred",
+        "gt"
+      ],
+      "properties": {
+        "pred": {
+          "enum": [
+            1,
+            2
+          ]
+        },
+        "gt": {
+          "enum": [
+            1,
+            2
+          ]
+        }
+      }
+    },
+    "metadata": {
+      "type": "object"
+    }
+  }
+}

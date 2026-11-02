@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { SampleView } from "../shared/contracts.js";
 import { sampleIdentity } from "../shared/sampleIdentity.js";
 import { JsonInspector } from "./JsonInspector.js";
@@ -10,11 +10,13 @@ type Selection = {
     expTitle: string;
     record: SampleView;
 };
-export function Lightbox({ selection, onClose, generation = 0, textDisplay }: {
+export function Lightbox({ selection, onClose, generation = 0, textDisplay, details }: {
     selection?: Selection;
     onClose: () => void;
     generation?: number;
     textDisplay?: TextDisplay;
+    /** Replaces the default text and JSON details (used by Scoring to keep candidates blind). */
+    details?: ReactNode;
 }) {
     const dialog = useRef<HTMLDialogElement>(null);
     const startedOutside = useRef(false);
@@ -53,7 +55,7 @@ export function Lightbox({ selection, onClose, generation = 0, textDisplay }: {
       {expandedPanel ? <div className="focused-image-layer"><div ref={focusedPanel} className="focused-panel" role="region" aria-label={`${expandedPanel.title} enlarged image`} tabIndex={-1}><MediaPanel key={`${generation}:${expandedPanel.id}:${expandedPanel.url}`} panel={expandedPanel} record={record} expanded/></div></div> : null}
     </div>
       <aside className="details-panel" aria-label="Record details"><div className="record-identity"><strong>{taskTitle}</strong><span>{sourceTitle}</span><span>{expTitle}</span><span>{identity.sourceId !== undefined ? 'Source ID' : 'Sample ID'} {identity.displayId}</span>{identity.sourceSplit ? <span>Split: {identity.sourceSplit}</span> : null}</div>
-        <SampleText record={record} textDisplay={textDisplay}/>
-        <p>Panels: {record.panels.map(panel => panel.title).join(" | ")}</p><JsonInspector record={record}/></aside></div>
+        {details ?? <><SampleText record={record} textDisplay={textDisplay}/>
+        <p>Panels: {record.panels.map(panel => panel.title).join(" | ")}</p><JsonInspector record={record}/></>}</aside></div>
   </dialog>;
 }

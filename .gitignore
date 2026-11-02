@@ -3,6 +3,8 @@ data/eval-sets/**
 !data/eval-sets/.gitkeep
 data/datasets/**
 !data/datasets/.gitkeep
+data/scoring/**
+!data/scoring/.gitkeep
 data/e6_r30_backups/
 data/.r30-install-*/
 
